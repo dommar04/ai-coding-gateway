@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/status-beta-e8a33d" alt="Status: beta">
-  <a href="https://www.npmjs.com/package/@apichap/ai-coding-gateway"><img src="https://img.shields.io/npm/v/@apichap/ai-coding-gateway?color=4b8e7a&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/apichap-ai-coding-gateway"><img src="https://img.shields.io/npm/v/apichap-ai-coding-gateway?color=4b8e7a&label=npm" alt="npm version"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-4b8e7a" alt="Node.js 22.13 or newer">
   <img src="https://img.shields.io/badge/works%20with-Claude%20Code-4b8e7a" alt="Works with Claude Code">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-4b8e7a" alt="GPL-3.0 license"></a>
@@ -30,7 +30,7 @@ No install needed, just Node.js 22.13 or newer.
 ### 1. Connect Claude Code
 
 ```bash
-npx @apichap/ai-coding-gateway init
+npx apichap-ai-coding-gateway init
 ```
 
 **That's it. Every tool call in new Claude Code sessions is now checked and logged.** It starts in monitor mode, so nothing is blocked until you switch to enforce.
@@ -38,7 +38,7 @@ npx @apichap/ai-coding-gateway init
 ### 2. Open the admin dashboard
 
 ```bash
-npx @apichap/ai-coding-gateway dashboard
+npx apichap-ai-coding-gateway dashboard
 ```
 
 Your browser opens the dashboard. There you watch tool calls live, approve requests and manage rules.
@@ -73,36 +73,36 @@ The gateway hooks into every tool call Claude Code makes (Bash, Edit, Read, WebF
     "PreToolUse": [
       {
         "matcher": "*",
-        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline @apichap/ai-coding-gateway@0.1.0 hook pre" }]
+        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline apichap-ai-coding-gateway@0.1.0 hook pre" }]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "*",
-        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline @apichap/ai-coding-gateway@0.1.0 hook post" }]
+        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline apichap-ai-coding-gateway@0.1.0 hook post" }]
       }
     ],
     "PreCompact": [
       {
         "matcher": "*",
-        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline @apichap/ai-coding-gateway@0.1.0 hook session" }]
+        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline apichap-ai-coding-gateway@0.1.0 hook session" }]
       }
     ],
     "SessionStart": [
       {
         "matcher": "*",
-        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline @apichap/ai-coding-gateway@0.1.0 hook session" }]
+        "hooks": [{ "type": "command", "command": "npx -y --prefer-offline apichap-ai-coding-gateway@0.1.0 hook session" }]
       }
     ]
   }
 }
 ```
 
-- **Pinned version:** the hooks are pinned to the version that ran `init`. After the first download, npx starts the gateway from its local cache without contacting the registry. To update, run `npx @apichap/ai-coding-gateway@latest init`.
-- **Faster hooks:** the hook runs on every tool call. For the quickest startup, install globally with `npm install -g @apichap/ai-coding-gateway`, then run `apichap-gateway init --installed`. The hooks then call the installed `apichap-gateway` command directly.
-- **Pre-releases:** every merge into `develop` is published under the `dev` tag. Try it with `npx @apichap/ai-coding-gateway@dev init`.
+- **Pinned version:** the hooks are pinned to the version that ran `init`. After the first download, npx starts the gateway from its local cache without contacting the registry. To update, run `npx apichap-ai-coding-gateway@latest init`.
+- **Faster hooks:** the hook runs on every tool call. For the quickest startup, install globally with `npm install -g apichap-ai-coding-gateway`, then run `apichap-gateway init --installed`. The hooks then call the installed `apichap-gateway` command directly.
+- **Pre-releases:** every merge into `develop` is published under the `dev` tag. Try it with `npx apichap-ai-coding-gateway@dev init`.
 - **Other settings file:** `init --settings <path>`, for example `.claude/settings.json` for a single project.
-- **Remove:** `npx @apichap/ai-coding-gateway uninstall` removes the hooks and keeps your data.
+- **Remove:** `npx apichap-ai-coding-gateway uninstall` removes the hooks and keeps your data.
 
 ### Dashboard
 
@@ -168,7 +168,7 @@ Rules are exchanged as a JSON file with an `allow` and a `deny` list. The defaul
 
 ```json
 {
-  "$schema": "https://unpkg.com/@apichap/ai-coding-gateway/rules/rule-file.schema.json",
+  "$schema": "https://unpkg.com/apichap-ai-coding-gateway/rules/rule-file.schema.json",
   "name": "My team rules",
   "version": 1,
   "allow": [{ "rule": "Read" }, { "rule": "Shell(git *)", "note": "git; risky parts are denied below" }],
@@ -215,7 +215,7 @@ Setting the environment variable `APICHAP_GATEWAY_MODE` overrides the stored mod
 
 ### CLI reference
 
-Run each command as `npx @apichap/ai-coding-gateway <command>`, or as `apichap-gateway <command>` if the package is installed globally.
+Run each command as `npx apichap-ai-coding-gateway <command>`, or as `apichap-gateway <command>` if the package is installed globally.
 
 ```
 init [--installed | --local] [--settings <path>]   register the hooks in Claude Code (--local: run this checkout)
@@ -283,7 +283,7 @@ npx tsx src/main.ts init --local
 
 - **What it registers:** `npx tsx "<repo>/src/main.ts" hook pre`, `… hook post` and `… hook session` in `~/.claude/settings.json`.
 - **Built copy instead:** `npm run build`, then `node dist/main.js init --local`. The hooks then run `node "<repo>/dist/main.js"`, with faster startup but a rebuild after each change.
-- **Back to the package:** run `npx @apichap/ai-coding-gateway init` again. `init` always replaces its earlier hooks.
+- **Back to the package:** run `npx apichap-ai-coding-gateway init` again. `init` always replaces its earlier hooks.
 - **New sessions** pick up the hooks. In a session that's already running, confirm the change via `/hooks`.
 - **While you refactor:** a half-finished change can make the hook fail. In enforce mode, and whenever the gateway can't read its mode, a failing hook blocks tool calls. Use monitor mode while you work, or `uninstall` the hooks temporarily.
 - **Keep your real data separate:** set `APICHAP_GATEWAY_DIR` to a scratch folder.

@@ -108,9 +108,9 @@ test/                              tests; test/fixtures/ holds realistic tool ou
 ## Branches and releases
 
 - Work on a `feature/*` branch and open a pull request into `develop`. Dependabot also opens its pull requests into `develop`.
-- Every merge into `develop` publishes a pre-release like `0.1.1-dev.42` under the npm `dev` tag. Try it with `npx @apichap/ai-coding-gateway@dev`.
+- Every merge into `develop` publishes a pre-release like `0.1.1-dev.42` under the npm `dev` tag. Try it with `npx apichap-ai-coding-gateway@dev`.
 - To release, bump `version` in `package.json` on `develop` (and move the `CHANGELOG.md` entries under that version), then open a pull request from `develop` into `main`. The merge publishes that version as `latest`, tags it and creates a GitHub release. A merge without a version bump publishes nothing.
-- Publishing only runs after the full test matrix has passed for that commit (`.github/workflows/release.yml`).
+- Publishing only runs after the full test matrix has passed for that commit (`.github/workflows/release.yml`). It uses the `npm-publish` environment, which only `main` and `develop` may use, so a workflow edited on a feature branch cannot publish.
 
 ## Pull requests
 

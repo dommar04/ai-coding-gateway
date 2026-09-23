@@ -8,7 +8,7 @@ First public release.
 
 ### Added
 
-- **Setup:** `npx @apichap/ai-coding-gateway init` registers the hooks in Claude Code, and `uninstall` removes them again.
+- **Setup:** `npx apichap-ai-coding-gateway init` registers the hooks in Claude Code, and `uninstall` removes them again.
 - **Rules:** allow and deny rules for every tool call (`Tool(pattern)` with wildcards, `{cwd}` and `{home}`, and the groups `Shell`, `FileEdit` and `File`). A deny rule always wins.
   - Chained commands, substitutions and heredocs are understood.
   - Default rules come from `rules/default-rules.json`. Import, export and reset work from the dashboard and the CLI.

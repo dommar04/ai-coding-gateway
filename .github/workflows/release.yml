@@ -22,6 +22,9 @@ jobs:
   publish:
     needs: test
     runs-on: ubuntu-latest
+    # Only main and develop may use this environment (repo settings), and npm's trusted
+    # publisher requires it, so a workflow edited on a feature branch cannot publish.
+    environment: npm-publish
     permissions:
       contents: write # tag + GitHub release
       id-token: write # npm trusted publishing and provenance
