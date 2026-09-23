@@ -99,14 +99,14 @@ test("gateway protection matches running the gateway, not mentioning it", () => 
   // Paths and text that only mention the name are fine.
   assert.equal(bash("cat C:/dev/apichap-ai-coding-gateway/src/a.ts").decision, "allow");
   assert.equal(bash("echo 'run apichap-gateway dashboard to open it'").decision, "allow");
-  const readme = ["cat > README.md <<'EOF'", "Run `npx @apichap/ai-coding-gateway init`, never --no-verify.", "EOF"].join("\n");
+  const readme = ["cat > README.md <<'EOF'", "Run `npx apichap-ai-coding-gateway init`, never --no-verify.", "EOF"].join("\n");
   assert.equal(bash(readme).decision, "allow");
   // Running it is blocked.
   for (const cmd of [
     "apichap-gateway mode off",
-    "npx -y @apichap/ai-coding-gateway uninstall",
-    "cd x && node C:/npm/node_modules/@apichap/ai-coding-gateway/dist/cli.js rules",
-    "node C:\\npm\\node_modules\\@apichap\\ai-coding-gateway\\dist\\cli.js mode off",
+    "npx -y apichap-ai-coding-gateway uninstall",
+    "cd x && node C:/npm/node_modules/apichap-ai-coding-gateway/dist/cli.js rules",
+    "node C:\\npm\\node_modules\\apichap-ai-coding-gateway\\dist\\main.js mode off",
     "cat ~/.apichap-gateway/gateway.sqlite",
   ]) {
     const v = bash(cmd);
@@ -180,9 +180,9 @@ test("the agent cannot manage the gateway itself", () => {
     "apichap-gateway rules add allow x",
     "apichap-gateway mode off",
     "apichap-gateway dashboard --no-open",
-    "npx @apichap/ai-coding-gateway policy local",
-    "npx @apichap/ai-coding-gateway uninstall",
-    "pnpm dlx @apichap/ai-coding-gateway init",
+    "npx apichap-ai-coding-gateway policy local",
+    "npx apichap-ai-coding-gateway uninstall",
+    "pnpm dlx apichap-ai-coding-gateway init",
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
