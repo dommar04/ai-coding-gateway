@@ -100,6 +100,7 @@ The gateway hooks into every tool call Claude Code makes (Bash, Edit, Read, WebF
 
 - **Pinned version:** the hooks are pinned to the version that ran `init`. After the first download, npx starts the gateway from its local cache without contacting the registry. To update, run `npx @apichap/ai-coding-gateway@latest init`.
 - **Faster hooks:** the hook runs on every tool call. For the quickest startup, install globally with `npm install -g @apichap/ai-coding-gateway`, then run `apichap-gateway init --installed`. The hooks then call the installed `apichap-gateway` command directly.
+- **Pre-releases:** every merge into `develop` is published under the `dev` tag. Try it with `npx @apichap/ai-coding-gateway@dev init`.
 - **Other settings file:** `init --settings <path>`, for example `.claude/settings.json` for a single project.
 - **Remove:** `npx @apichap/ai-coding-gateway uninstall` removes the hooks and keeps your data.
 

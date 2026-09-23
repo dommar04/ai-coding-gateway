@@ -1,0 +1,61 @@
+name: Release
+
+# main    -> publishes the version in package.json as "latest" (skipped if already published),
+#            then tags it and creates a GitHub release.
+# develop -> publishes a pre-release like 0.1.1-dev.42 under the "dev" dist-tag.
+# Publishing uses npm trusted publishing (OIDC), so no npm token is stored in GitHub.
+on:
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # tag + GitHub release
+      id-token: write # npm trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24 ships npm 11, which supports trusted publishing.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Publish release (main)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already published - bump the version in package.json to release."
+            exit 0
+          fi
+          npm publish --provenance --access public
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" --title "v$VERSION" --generate-notes
+
+      - name: Publish pre-release (develop)
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          # Next patch version plus the run number, e.g. 0.1.0 -> 0.1.1-dev.42. Not committed.
+          DEV_VERSION=$(node -p "const [a, b, c] = require('./package.json').version.split('-')[0].split('.').map(Number); \`\${a}.\${b}.\${c + 1}-dev.${{ github.run_number }}\`")
+          npm version "$DEV_VERSION" --no-git-tag-version
+          npm publish --provenance --access public --tag dev

@@ -105,6 +105,13 @@ test/                              tests; test/fixtures/ holds realistic tool ou
 3. Test it with **real output** from the tool, and put larger samples in `test/fixtures/`. The test must show that failures, errors and warnings survive. That matters more than how much gets removed.
 4. Never rewrite `Read` results in content. Claude needs the exact file text to edit files.
 
+## Branches and releases
+
+- Work on a `feature/*` branch and open a pull request into `develop`. Dependabot also opens its pull requests into `develop`.
+- Every merge into `develop` publishes a pre-release like `0.1.1-dev.42` under the npm `dev` tag. Try it with `npx @apichap/ai-coding-gateway@dev`.
+- To release, bump `version` in `package.json` on `develop` (and move the `CHANGELOG.md` entries under that version), then open a pull request from `develop` into `main`. The merge publishes that version as `latest`, tags it and creates a GitHub release. A merge without a version bump publishes nothing.
+- Publishing only runs after the full test matrix has passed for that commit (`.github/workflows/release.yml`).
+
 ## Pull requests
 
 - Keep them focused, and describe the problem and how you verified the fix.

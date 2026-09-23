@@ -1,10 +1,20 @@
 version: 2
 updates:
+  # Pull requests go into develop and reach main with the next release.
   - package-ecosystem: npm
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
