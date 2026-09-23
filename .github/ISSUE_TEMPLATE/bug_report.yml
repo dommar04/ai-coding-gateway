@@ -1,0 +1,37 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: call
+    attributes:
+      label: Tool call or command
+      description: The tool call, command or rule involved. `apichap-gateway rules test "Bash(...)"` output helps a lot.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `npx @apichap/ai-coding-gateway --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: errors
+    attributes:
+      label: Errors
+      description: Relevant lines from `~/.apichap-gateway/errors.log`, if any.
+      render: text

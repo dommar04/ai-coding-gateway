@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>apichap AI Coding Gateway</title>
+    <link rel="icon" type="image/png" href="/assets/apichap-mark.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <svg class="sprite" width="0" height="0" aria-hidden="true">
+      <symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4" /></symbol>
+      <symbol id="i-inbox" viewBox="0 0 24 24">
+        <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+        <path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24">
+        <rect x="6" y="5" width="4" height="14" rx="1" />
+        <rect x="14" y="5" width="4" height="14" rx="1" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="i-feather" viewBox="0 0 24 24">
+        <path d="M20.2 12.2a6 6 0 0 0-8.5-8.5L5 10.5V19h8.5z" />
+        <path d="M16 8 2 22M17.5 15H9" />
+      </symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+    </svg>
+
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <picture>
+            <source srcset="/assets/apichap-logo-dark.png" media="(prefers-color-scheme: dark)" />
+            <img src="/assets/apichap-logo.png" alt="apichap" />
+          </picture>
+          <div class="product">AI Coding Gateway</div>
+        </div>
+        <nav class="menu">
+          <a href="#calls" data-page="calls"
+            ><svg class="icon"><use href="#i-activity" /></svg><span class="lbl">Activity</span></a
+          >
+          <a href="#approvals" data-page="approvals"
+            ><svg class="icon"><use href="#i-inbox" /></svg><span class="lbl">Approvals</span
+            ><span class="count" id="pending-count" hidden>0</span></a
+          >
+          <a href="#rules" data-page="rules"
+            ><svg class="icon"><use href="#i-shield" /></svg><span class="lbl">Rules</span></a
+          >
+          <a href="#savings" data-page="savings"
+            ><svg class="icon"><use href="#i-feather" /></svg><span class="lbl">Token savings</span></a
+          >
+        </nav>
+        <div class="side-foot">
+          <div class="side-card">
+            <div class="label">Enforcement</div>
+            <div class="modes" id="modes">
+              <button data-mode="enforce" title="Block denied and unlisted calls">
+                <span class="pip"></span>Enforce<small>blocks</small>
+              </button>
+              <button data-mode="monitor" title="Log what would be blocked, block nothing">
+                <span class="pip"></span>Monitor<small>logs only</small>
+              </button>
+              <button data-mode="off" title="No rule checks, only logging">
+                <span class="pip"></span>Off<small>no checks</small>
+              </button>
+            </div>
+          </div>
+          <div class="conn"><span class="dot" id="live-dot"></span><span id="live-text">Connecting…</span></div>
+        </div>
+      </aside>
+
+      <main>
+        <div id="banner"></div>
+
+        <!-- ---------- Activity ---------- -->
+        <section id="page-calls" data-page-section>
+          <div class="page-head">
+            <div>
+              <h1>Activity</h1>
+              <p>Every tool call from Claude Code sessions on this machine, grouped by the prompt that triggered it.</p>
+            </div>
+            <div class="actions">
+              <div class="seg" id="view-toggle">
+                <button data-view="grouped" class="on">By prompt</button>
+                <button data-view="flat">All calls</button>
+              </div>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="k">Tool result tokens</div>
+              <div class="v" id="k-tokens">0</div>
+              <div class="kk" id="k-tokens-sub"></div>
+            </div>
+            <div class="kpi">
+              <div class="k">Saved by reduction</div>
+              <div class="v brand" id="k-saved">0</div>
+              <div class="kk" id="k-saved-sub"></div>
+            </div>
+            <div class="kpi">
+              <div class="k">Blocked / would block</div>
+              <div class="v bad" id="k-blocked">0</div>
+              <div class="kk">in the calls shown</div>
+            </div>
+            <div class="kpi">
+              <div class="k">Pending approvals</div>
+              <div class="v warn" id="k-pending">0</div>
+              <div class="kk"><a href="#approvals">review</a></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="toolbar">
+              <label class="search"
+                ><svg class="icon"><use href="#i-search" /></svg
+                ><input type="text" id="f-text" placeholder="Search command, path, project…"
+              /></label>
+              <select id="f-project" title="Project">
+                <option value="">All projects</option>
+              </select>
+              <select id="f-tool">
+                <option value="">All tools</option>
+              </select>
+              <select id="f-decision">
+                <option value="">All decisions</option>
+                <option value="allowed">Allowed</option>
+                <option value="denied">Denied</option>
+                <option value="would_deny">Would deny</option>
+              </select>
+              <button class="btn" id="pause">
+                <svg class="icon"><use href="#i-pause" /></svg><span>Pause</span>
+              </button>
+            </div>
+            <div id="grouped-view" class="groups"></div>
+            <div class="table-scroll" id="flat-view" hidden>
+              <table id="calls" class="calls">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Tool</th>
+                    <th>Call</th>
+                    <th>Project</th>
+                    <th>Tokens</th>
+                    <th>Decision</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="empty" id="calls-empty" hidden>
+              <svg class="icon"><use href="#i-activity" /></svg>
+              <div>No tool calls yet. Use Claude Code and they appear here live.</div>
+            </div>
+          </div>
+          <div class="muted small" id="calls-count"></div>
+        </section>
+
+        <!-- ---------- Token savings ---------- -->
+        <section id="page-savings" data-page-section hidden>
+          <div class="page-head">
+            <div>
+              <h1>Token savings</h1>
+              <p>
+                Each option shortens tool results before Claude sees them. <b>On</b> changes what Claude gets, <b>Measure</b> only
+                calculates what it would save, <b>Off</b> does nothing.
+              </p>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="k">Tool result tokens</div>
+              <div class="v" id="s-tokens">0</div>
+              <div class="kk" id="s-calls"></div>
+            </div>
+            <div class="kpi">
+              <div class="k">Saved</div>
+              <div class="v brand" id="s-saved">0</div>
+              <div class="kk" id="s-saved-sub"></div>
+            </div>
+            <div class="kpi">
+              <div class="k">Would also save (Measure)</div>
+              <div class="v warn" id="s-potential">0</div>
+              <div class="kk">switch those options to On</div>
+            </div>
+            <div class="kpi">
+              <div class="k">Tokens Claude wrote for calls</div>
+              <div class="v" id="s-input">0</div>
+              <div class="kk">tool inputs, not reducible here</div>
+            </div>
+          </div>
+          <div id="strategies"></div>
+          <p class="muted small">
+            Token counts are estimates (about 4 characters per token). Prompt totals on the Activity page come from Claude Code's
+            own usage data.
+          </p>
+        </section>
+
+        <!-- ---------- Approvals ---------- -->
+        <section id="page-approvals" data-page-section hidden>
+          <div class="page-head">
+            <div>
+              <h1>Approvals</h1>
+              <p>Tool calls that were not on the allowlist. Approving one adds an allow rule for everyone using this gateway.</p>
+            </div>
+            <div class="actions">
+              <div class="seg" id="req-filter">
+                <button data-status="pending" class="on">Pending</button>
+                <button data-status="all">All</button>
+              </div>
+            </div>
+          </div>
+          <div class="card" id="requests"></div>
+        </section>
+
+        <!-- ---------- Rules ---------- -->
+        <section id="page-rules" data-page-section hidden>
+          <div class="page-head">
+            <div>
+              <h1>Rules</h1>
+              <p>Deny rules always win. Everything not covered by an allow rule is blocked and becomes an approval request.</p>
+            </div>
+            <div class="actions">
+              <button class="btn" id="rules-export" title="Download all rules as a JSON rule file">Export</button>
+              <button class="btn needs-local" id="rules-import" title="Replace all rules with a JSON rule file">Import…</button>
+              <button class="btn needs-local" id="rules-reset" title="Replace all rules with the default rules">
+                Reset to defaults
+              </button>
+              <input type="file" id="rules-file" accept=".json,application/json" hidden />
+            </div>
+          </div>
+          <div id="defaults-banner"></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="card-head">
+                <h2>Test a call</h2>
+                <span class="sub">See which rule decides it</span>
+              </div>
+              <div class="form">
+                <input type="text" id="test-input" class="mono" placeholder="Bash(git status &amp;&amp; rm -rf x)" />
+                <div class="verdict" id="test-result">
+                  <span class="muted"
+                    >Type a call, e.g. <code>Bash(npm run build)</code> or <code>Edit(C:/work/app/src/a.ts)</code>.</span
+                  >
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>Add rule</h2></div>
+              <form class="form" id="add-form">
+                <div class="row">
+                  <select id="add-effect">
+                    <option value="allow">allow</option>
+                    <option value="deny">deny</option>
+                  </select>
+                  <input type="text" id="add-rule" class="mono" placeholder="Bash(docker compose *)" required />
+                </div>
+                <div class="row">
+                  <input type="text" id="add-note" placeholder="Note, shown to Claude when a deny rule blocks" />
+                  <button class="btn primary" type="submit">Add rule</button>
+                </div>
+              </form>
+              <div class="help">
+                <code>Tool</code> or <code>Tool(pattern)</code> · <code>*</code> anything · <code>?</code> one character · in
+                paths <code>*</code> stays in a folder, <code>**</code> crosses folders · <code>{cwd}</code> project folder ·
+                <code>{home}</code> home folder
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h2>All rules</h2>
+              <span class="sub" id="rules-count"></span><span class="grow"></span>
+              <div class="seg" id="rules-effect">
+                <button data-effect="" class="on">All</button><button data-effect="deny">Deny</button
+                ><button data-effect="allow">Allow</button>
+              </div>
+              <label class="search search-narrow"
+                ><svg class="icon"><use href="#i-search" /></svg><input type="text" id="rules-filter" placeholder="Filter rules…"
+              /></label>
+            </div>
+            <div class="table-scroll">
+              <table id="rules">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Effect</th>
+                    <th>Rule</th>
+                    <th>Note</th>
+                    <th>Source</th>
+                    <th>On</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <aside class="drawer" id="detail" aria-hidden="true">
+      <div class="drawer-head">
+        <strong id="detail-title">Tool call</strong><span class="grow"></span
+        ><button class="btn sm" id="detail-close">
+          <svg class="icon"><use href="#i-x" /></svg>Close
+        </button>
+      </div>
+      <div class="drawer-body" id="detail-body"></div>
+    </aside>
+    <div id="toast"></div>
+
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

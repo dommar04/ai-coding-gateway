@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "apichap AI Coding Gateway rule file",
+  "description": "Allow and deny rules for Claude Code tool calls. A matching deny rule always wins; calls no allow rule covers become approval requests.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "description": "Name of this rule set." },
+    "version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Version of this rule set. For the default rules, a higher version makes the dashboard offer the update."
+    },
+    "description": { "type": "string" },
+    "exportedAt": { "type": "string", "description": "Set by export. Ignored on import." },
+    "allow": { "$ref": "#/$defs/ruleList", "description": "Rules that let tool calls through." },
+    "deny": { "$ref": "#/$defs/ruleList", "description": "Rules that block tool calls. They always win over allow rules." }
+  },
+  "anyOf": [{ "required": ["allow"] }, { "required": ["deny"] }],
+  "additionalProperties": false,
+  "$defs": {
+    "ruleList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    },
+    "rule": {
+      "type": "object",
+      "required": ["rule"],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "type": "string",
+          "pattern": "^\\s*[^()\\s]+(\\([\\s\\S]*\\))?\\s*$",
+          "description": "Tool or Tool(pattern), e.g. Read, Shell(git *), FileEdit({cwd}/**), mcp__github__*. Wildcards: * anything, ? one character; in paths * stays in a folder and ** crosses folders. Groups: Shell = Bash + PowerShell, FileEdit = Edit, Write, MultiEdit, NotebookEdit, File = Read + FileEdit.",
+          "examples": [
+            "Read",
+            "Shell(git *)",
+            "Shell(git push *--force*)",
+            "FileEdit({cwd}/**)",
+            "File(**/.env*)",
+            "mcp__github__*"
+          ]
+        },
+        "note": {
+          "type": ["string", "null"],
+          "description": "Why the rule exists. For deny rules, this is what Claude and the user see when the rule blocks a call."
+        },
+        "enabled": { "type": "boolean", "default": true, "description": "Set to false to keep the rule but switch it off." }
+      }
+    }
+  }
+}

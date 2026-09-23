@@ -1,0 +1,48 @@
+{
+  "name": "@apichap/ai-coding-gateway",
+  "version": "0.1.0",
+  "description": "apichap AI Coding Gateway: guardrails and a live dashboard for Claude Code. Checks every tool call against allow/deny rules, logs it locally, and collects approval requests.",
+  "keywords": [
+    "apichap",
+    "claude",
+    "claude-code",
+    "hooks",
+    "guardrails",
+    "permissions",
+    "ai-agents",
+    "dashboard"
+  ],
+  "license": "GPL-3.0-or-later",
+  "author": "",
+  "main": "dist/main.js",
+  "bin": {
+    "apichap-gateway": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "rules",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && node -e \"require('fs').cpSync('src/dashboard/public','dist/dashboard/public',{recursive:true})\"",
+    "prepublishOnly": "npm run build && npm test",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc -p tsconfig.dashboard.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "3.9.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

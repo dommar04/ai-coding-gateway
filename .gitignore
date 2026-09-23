@@ -1,0 +1,19 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tgz
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Local Claude Code data: settings, session transcripts, notes. Never commit these.
+.claude/
+*.jsonl

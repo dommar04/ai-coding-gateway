@@ -1,0 +1,5 @@
+dist/
+node_modules/
+package-lock.json
+# Hand-formatted: one rule per line.
+rules/default-rules.json

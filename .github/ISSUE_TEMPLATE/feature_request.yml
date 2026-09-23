@@ -1,0 +1,21 @@
+name: Feature request
+description: A new rule, reduction option, tech stack or dashboard feature
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea
+      description: How could the gateway help? For new tech stacks, please paste real sample output.
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample output
+      render: text
