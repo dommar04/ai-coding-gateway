@@ -1,6 +1,6 @@
 {
   "name": "apichap-ai-coding-gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "apichap AI Coding Gateway: guardrails and a live dashboard for Claude Code. Checks every tool call against allow/deny rules, logs it locally, and collects approval requests.",
   "keywords": [
     "apichap",
