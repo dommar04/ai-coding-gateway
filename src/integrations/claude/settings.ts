@@ -4,9 +4,9 @@ import { dirname, join } from "node:path";
 import { packageFile } from "../../helpers/paths";
 
 // `init` / `uninstall`: register the gateway's hooks in Claude Code's settings.json,
-// so a single `npx @apichap/ai-coding-gateway init` is the whole setup.
+// so a single `npx apichap-ai-coding-gateway init` is the whole setup.
 
-const PACKAGE_NAME = "@apichap/ai-coding-gateway";
+const PACKAGE_NAME = "apichap-ai-coding-gateway";
 
 interface HookHandler {
   type?: string;
@@ -34,7 +34,7 @@ type Phase = (typeof PHASES)[number]["phase"];
 
 // Our own hook commands, including older forms (global bin, npx, running from a source checkout).
 const OUR_COMMAND =
-  /(@apichap\/ai-coding-gateway(@\S+)?|apichap-ai-coding-gateway(@\S+)?|apichap-gateway|claude-gateway|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session)\b/;
+  /(apichap-ai-coding-gateway(@\S+)?|apichap-gateway|claude-gateway|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session)\b/;
 
 export function packageVersion(): string {
   try {

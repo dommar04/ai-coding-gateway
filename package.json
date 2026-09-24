@@ -1,6 +1,6 @@
 {
-  "name": "@apichap/ai-coding-gateway",
-  "version": "0.1.0",
+  "name": "apichap-ai-coding-gateway",
+  "version": "0.1.1",
   "description": "apichap AI Coding Gateway: guardrails and a live dashboard for Claude Code. Checks every tool call against allow/deny rules, logs it locally, and collects approval requests.",
   "keywords": [
     "apichap",
@@ -13,6 +13,14 @@
     "dashboard"
   ],
   "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dommar04/ai-coding-gateway.git"
+  },
+  "homepage": "https://github.com/dommar04/ai-coding-gateway#readme",
+  "bugs": {
+    "url": "https://github.com/dommar04/ai-coding-gateway/issues"
+  },
   "author": "",
   "main": "dist/main.js",
   "bin": {
@@ -37,7 +45,7 @@
   },
   "type": "commonjs",
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^26.6.2",
     "prettier": "3.9.9",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

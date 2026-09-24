@@ -13,7 +13,7 @@ const tempSettings = (content?: unknown) => {
 const read = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 test("hook command is a pinned, offline-first npx call", () => {
-  assert.equal(hookCommand("pre"), `npx -y --prefer-offline @apichap/ai-coding-gateway@${packageVersion()} hook pre`);
+  assert.equal(hookCommand("pre"), `npx -y --prefer-offline apichap-ai-coding-gateway@${packageVersion()} hook pre`);
   assert.equal(hookCommand("post", { installed: true }), "apichap-gateway hook post");
 });
 

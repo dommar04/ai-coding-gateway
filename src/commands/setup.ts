@@ -17,7 +17,7 @@ export function runInit(args: string[]): void {
   if (result.replaced) console.log(`  replaced ${result.replaced} earlier gateway hook(s)`);
   console.log("");
   console.log("New Claude Code sessions are now tracked. It starts in monitor mode, so nothing is blocked yet.");
-  console.log("Open the dashboard:  npx @apichap/ai-coding-gateway dashboard");
+  console.log("Open the dashboard:  npx apichap-ai-coding-gateway dashboard");
 }
 
 export function runUninstall(args: string[]): void {
