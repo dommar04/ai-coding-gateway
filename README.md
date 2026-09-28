@@ -216,7 +216,7 @@ Rules are exchanged as a JSON file with a list of groups. The default rules use 
 Open a denied call on the Activity page and choose **Allow this call…**. The dialog checks the call against the current rules and suggests two allow rules:
 
 | Denied call                 | Exact                        | Broad                    |
-|-----------------------------| ---------------------------- | ------------------------ |
+| --------------------------- | ---------------------------- | ------------------------ |
 | `npm run build`             | `Bash(npm run build)`        | `Bash(npm run *)`        |
 | `docker compose up -d`      | `Bash(docker compose up -d)` | `Bash(docker compose *)` |
 | `mcp__github__create_issue` | `mcp__github__create_issue`  | `mcp__github__*`         |
@@ -225,11 +225,11 @@ The rule goes into the group _The agent is allowed to make calls you allowed fro
 
 ### Modes
 
-| Mode                | Behaviour                                                                                               |
-| ------------------- |---------------------------------------------------------------------------------------------------------|
-| `monitor` (default) | Checks and logs everything, but **blocks nothing**. Use it to tune the rules first.                     |
-| `enforce`           | Blocks denied and unlisted calls. If the gateway itself fails, the call is denied too.                  |
-| `off`               | Only logs; no rule checks.                                                                              |
+| Mode                | Behaviour                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `monitor` (default) | Checks and logs everything, but **blocks nothing**. Use it to tune the rules first.    |
+| `enforce`           | Blocks denied and unlisted calls. If the gateway itself fails, the call is denied too. |
+| `off`               | Only logs; no rule checks.                                                             |
 
 Setting the environment variable `APICHAP_GATEWAY_MODE` overrides the stored mode. That's the escape hatch if the database is broken.
 
