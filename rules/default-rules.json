@@ -1,7 +1,7 @@
 {
   "$schema": "./rule-file.schema.json",
   "name": "apichap AI Coding Gateway default rules",
-  "version": 11,
+  "version": 12,
   "description": "Starter rules, one group per policy. Allow everyday coding work, block destructive or risky actions. Anything no rule allows is denied. A matching deny rule always wins.",
   "groups": [
     {
@@ -194,6 +194,7 @@
         { "rule": "EnterPlanMode" },
         { "rule": "ExitPlanMode" },
         { "rule": "WebSearch" },
+        { "rule": "WebFetch" },
         { "rule": "ListAgents" },
         { "rule": "TaskStop", "note": "stop a background task" },
         { "rule": "TaskOutput", "note": "read a background task's output" },
