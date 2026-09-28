@@ -7,7 +7,7 @@ import { recordStrategySavings, strategyStates } from "./options";
 import { reduceResult, spillDirFor, type ReduceResult } from "./pipeline";
 
 // Token reduction: shrink tool calls before they run and tool results before the agent reads them.
-// Every strategy has its own on / measure / off setting (see options.ts).
+// Every strategy has its own on / off setting (see options.ts).
 
 export type { ReduceResult } from "./pipeline";
 

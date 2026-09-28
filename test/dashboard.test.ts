@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
@@ -10,9 +10,7 @@ const dir = mkdtempSync(join(tmpdir(), "apichap-gateway-test-"));
 process.env.APICHAP_GATEWAY_DIR = dir;
 
 type ServerModule = typeof import("../src/dashboard/server");
-type StoreModule = typeof import("../src/services/settings") &
-  typeof import("../src/services/tool-security/rules") &
-  typeof import("../src/services/tool-security/requests");
+type StoreModule = typeof import("../src/services/settings") & typeof import("../src/services/tool-security/rules");
 type DbModule = typeof import("../src/storage/database") & typeof import("../src/storage/tables/tool-calls");
 
 let store: StoreModule;
@@ -26,7 +24,6 @@ before(async () => {
   store = {
     ...(await import("../src/services/settings")),
     ...(await import("../src/services/tool-security/rules")),
-    ...(await import("../src/services/tool-security/requests")),
   };
   db = { ...(await import("../src/storage/database")), ...(await import("../src/storage/tables/tool-calls")) };
   dashboard = await server.startDashboard({ port: 0, token: TOKEN, pollMs: 50 });
@@ -46,10 +43,12 @@ const api = (method: string, path: string, body?: unknown) =>
     body: body ? JSON.stringify(body) : undefined,
   });
 
-function fileUnlisted(command: string): number {
+/** Logs a call that no allow rule covers (monitor mode) and returns its id. */
+function logUnlisted(command: string, toolUseId: string): number {
   const verdict = store.evaluateCall("Bash", { command }, dir);
   assert.ok(verdict.decision === "deny" && verdict.reason === "unlisted");
-  return store.fileRequest({ toolName: "Bash", toolInput: { command }, cwd: dir, sessionId: "s1", verdict });
+  db.insertCall({ sessionId: "s1", project: dir, toolName: "Bash", toolUseId, toolInput: { command }, decision: "would_deny" });
+  return db.lastCallId();
 }
 
 test("serves the page", async () => {
@@ -69,7 +68,7 @@ test("serves the page's stylesheet and modules with a strict CSP", async () => {
 
   const css = await fetch(base + "/styles.css");
   assert.equal(css.headers.get("content-type"), "text/css; charset=utf-8");
-  for (const mod of ["main", "core", "format", "activity", "approvals", "rules", "savings"]) {
+  for (const mod of ["main", "core", "format", "activity", "allow", "rules", "savings"]) {
     const res = await fetch(`${base}/js/${mod}.js`);
     assert.equal(res.status, 200, mod);
     assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
@@ -77,6 +76,22 @@ test("serves the page's stylesheet and modules with a strict CSP", async () => {
   for (const bad of ["/js/../server.ts", "/js/%2e%2e/server.ts", "/server.ts", "/js/missing.js", "/public/index.html"]) {
     assert.equal((await fetch(base + bad)).status, 404, bad);
   }
+});
+
+test("every element the page's scripts look up by id exists in index.html", () => {
+  // A missing element makes $("#x").textContent throw, which stops the whole page from starting.
+  const publicDir = join(__dirname, "..", "src", "dashboard", "public");
+  const html = readFileSync(join(publicDir, "index.html"), "utf8");
+  const defined = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+  const optional = new Set(["mode-hint"]); // looked up with a null check
+  const missing: string[] = [];
+  for (const file of readdirSync(join(publicDir, "js"))) {
+    const js = readFileSync(join(publicDir, "js", file), "utf8");
+    for (const [, id] of js.matchAll(/\$\$?\("#([\w-]+)/g)) {
+      if (!defined.has(id) && !optional.has(id)) missing.push(`${file}: #${id}`);
+    }
+  }
+  assert.deepEqual(missing, []);
 });
 
 test("serves brand assets without a token, nothing else", async () => {
@@ -118,22 +133,50 @@ test("rejects cross-origin requests", async () => {
   assert.equal(res.status, 403);
 });
 
-test("approve broad adds a rule and closes covered requests", async () => {
-  const up = fileUnlisted("docker compose up -d");
-  const down = fileUnlisted("docker compose down");
+test("a denied call can be allowed from the activity with the broad rule", async () => {
+  const id = logUnlisted("docker compose up -d", "allow1");
+  const options = async () =>
+    (await (await api("GET", `/api/calls/${id}/allow`)).json()) as { state: string; exact?: string[]; broad?: string[] };
+  const before = await options();
+  assert.deepEqual(before, {
+    state: "unlisted",
+    uncovered: ["docker compose up -d"],
+    exact: ["Bash(docker compose up -d)"],
+    broad: ["Bash(docker compose *)"],
+  });
 
-  const res = await api("POST", `/api/requests/${up}/approve`, { mode: "broad" });
+  const res = await api("POST", `/api/calls/${id}/allow`, { mode: "broad" });
   assert.equal(res.status, 200);
-  const result = (await res.json()) as { rules: string[]; autoClosed: number[] };
-  assert.deepEqual(result.rules, ["Bash(docker compose *)"]);
-  assert.deepEqual(result.autoClosed, [down]);
+  assert.deepEqual(((await res.json()) as { rules: string[] }).rules, ["Bash(docker compose *)"]);
+  const added = store.listRules().find((r) => r.rule === "Bash(docker compose *)")!;
+  assert.equal(store.listGroups().find((g) => g.id === added.group_id)?.key, "approved");
 
-  const pending = (await (await api("GET", "/api/requests")).json()) as unknown[];
-  assert.equal(pending.length, 0);
+  // Now covered: nothing left to add, and similar calls are allowed too.
+  assert.equal((await options()).state, "allowed");
+  assert.equal((await api("POST", `/api/calls/${id}/allow`, { mode: "exact" })).status, 400);
   const verdict = (await (await api("POST", "/api/rules/test", { call: "Bash(docker compose logs)" })).json()) as {
     decision: string;
   };
   assert.equal(verdict.decision, "allow");
+});
+
+test("a call denied by a deny rule cannot be allowed with an allow rule", async () => {
+  const denyRule = store.listRules().find((r) => r.effect === "deny" && r.rule === "Shell(rm *)")!;
+  db.insertCall({
+    sessionId: "s1",
+    project: dir,
+    toolName: "Bash",
+    toolUseId: "allow2",
+    toolInput: { command: "rm -rf build" },
+    decision: "denied",
+    ruleId: denyRule.id,
+  });
+  const id = db.lastCallId();
+  const options = (await (await api("GET", `/api/calls/${id}/allow`)).json()) as { state: string; rule: { id: number } };
+  assert.deepEqual([options.state, options.rule.id], ["denied-by-rule", denyRule.id]);
+  assert.equal((await api("POST", `/api/calls/${id}/allow`, { mode: "custom", rule: "Bash(rm -rf build)" })).status, 400);
+  assert.equal((await api("POST", `/api/calls/${id}/allow`, { mode: "sideways" })).status, 400);
+  assert.equal((await api("GET", "/api/calls/999999/allow")).status, 404);
 });
 
 test("rule CRUD and validation", async () => {
@@ -155,7 +198,8 @@ test("live stream pushes new tool calls", async () => {
       res.setEncoding("utf8");
       res.on("data", (chunk: string) => {
         buffer += chunk;
-        if (buffer.includes("event: calls")) {
+        // Wait for this test's call: calls logged by earlier tests may still be broadcast first.
+        if (buffer.includes("event: calls") && buffer.includes("tu-live")) {
           req.destroy();
           resolve(buffer);
         }
@@ -178,39 +222,17 @@ test("live stream pushes new tool calls", async () => {
   assert.match(await received, /git status/);
 });
 
-test("managed policy makes rules read-only in the API", async () => {
-  store.setPolicySource("managed");
-  try {
-    assert.equal((await api("POST", "/api/rules", { effect: "allow", rule: "Bash(x)" })).status, 403);
-    assert.equal((await api("PUT", "/api/mode", { mode: "off" })).status, 403);
-    const id = fileUnlisted("terraform apply");
-    assert.equal((await api("POST", `/api/requests/${id}/approve`, { mode: "exact" })).status, 403);
-    assert.equal((await api("GET", "/api/rules")).status, 200);
-  } finally {
-    store.setPolicySource("local");
-  }
-});
-
-test("reduction options can be listed and switched, and are locked when managed", async () => {
+test("reduction options can be listed and switched", async () => {
   const data = (await (await api("GET", "/api/reduction")).json()) as {
     strategies: Array<{ id: string; state: string; states: string[] }>;
   };
-  const paging = data.strategies.find((s) => s.id === "paging")!;
-  assert.deepEqual(paging.states, ["on", "measure", "off"]);
-  assert.deepEqual(data.strategies.find((s) => s.id === "grep-limit")!.states, ["on", "off"]);
+  assert.ok(data.strategies.every((s) => s.states.join() === "on,off"));
 
-  assert.equal((await api("PUT", "/api/reduction/paging", { state: "measure" })).status, 200);
+  assert.equal((await api("PUT", "/api/reduction/paging", { state: "off" })).status, 200);
   const after = (await (await api("GET", "/api/reduction")).json()) as { strategies: Array<{ id: string; state: string }> };
-  assert.equal(after.strategies.find((s) => s.id === "paging")!.state, "measure");
-  assert.equal((await api("PUT", "/api/reduction/grep-limit", { state: "measure" })).status, 400);
+  assert.equal(after.strategies.find((s) => s.id === "paging")!.state, "off");
+  assert.equal((await api("PUT", "/api/reduction/paging", { state: "measure" })).status, 400);
   assert.equal((await api("PUT", "/api/reduction/nope", { state: "on" })).status, 400);
-
-  store.setPolicySource("managed");
-  try {
-    assert.equal((await api("PUT", "/api/reduction/paging", { state: "on" })).status, 403);
-  } finally {
-    store.setPolicySource("local");
-  }
 });
 
 test("tool calls are grouped by prompt with token totals", async () => {
@@ -244,7 +266,7 @@ test("tool calls are grouped by prompt with token totals", async () => {
   }>;
   const a = prompts.find((p) => p.promptId === "prompt-a")!;
   assert.equal(a.callCount, 2);
-  assert.deepEqual({ ...a.tokens, potential: undefined }, { input: 8, result: 150, saved: 60, potential: undefined });
+  assert.deepEqual(a.tokens, { input: 8, result: 150, saved: 60 });
   assert.equal(a.calls[0].tokens.resultAfter, 40);
   assert.equal((await api("GET", "/api/prompts/prompt-a")).status, 200);
   assert.equal((await api("GET", "/api/prompts/unknown")).status, 404);
@@ -288,66 +310,169 @@ test("projects are listed and calls, prompts and tokens can be filtered by proje
 
 test("each call carries the reason for its decision", async () => {
   const denyRule = store.listRules().find((r) => r.effect === "deny" && r.rule === "Shell(rm *)")!;
-  const requestId = fileUnlisted("docker run nginx");
   const base = { sessionId: "s4", project: dir, toolName: "Bash", promptId: "prompt-reason" };
   db.insertCall({ ...base, toolUseId: "r1", toolInput: { command: "rm -rf x" }, decision: "denied", ruleId: denyRule.id });
-  db.insertCall({ ...base, toolUseId: "r2", toolInput: { command: "docker run nginx" }, decision: "would_deny", requestId });
+  db.insertCall({ ...base, toolUseId: "r2", toolInput: { command: "docker run nginx" }, decision: "would_deny" });
+  db.insertCall({ ...base, toolUseId: "r3", toolInput: { command: "git status" }, decision: "allowed" });
 
   const calls = (await (await api("GET", `/api/calls?project=${encodeURIComponent(dir)}`)).json()) as Array<{
     toolUseId: string;
-    reason: { kind: string; rule?: string; note?: string; effect?: string; requestId?: number; requestStatus?: string } | null;
+    reason: { kind: string; rule?: string; note?: string; effect?: string } | null;
   }>;
   const byRule = calls.find((c) => c.toolUseId === "r1")!.reason!;
   assert.deepEqual([byRule.kind, byRule.effect, byRule.rule, byRule.note], ["rule", "deny", "Shell(rm *)", denyRule.note]);
-  const unlisted = calls.find((c) => c.toolUseId === "r2")!.reason!;
-  assert.deepEqual([unlisted.kind, unlisted.requestId, unlisted.requestStatus], ["unlisted", requestId, "pending"]);
+  assert.deepEqual(calls.find((c) => c.toolUseId === "r2")!.reason, { kind: "unlisted" });
+  assert.equal(calls.find((c) => c.toolUseId === "r3")!.reason, null);
 });
 
+test("stats count denied calls, blocked or only logged", async () => {
+  const denied = async () => ((await (await api("GET", "/api/stats")).json()) as { deniedCalls: number }).deniedCalls;
+  const before = await denied();
+  const base = { sessionId: "s6", project: dir, toolName: "Bash", toolInput: { command: "x" } };
+  db.insertCall({ ...base, toolUseId: "st1", decision: "denied" });
+  db.insertCall({ ...base, toolUseId: "st2", decision: "would_deny" });
+  db.insertCall({ ...base, toolUseId: "st3", decision: "allowed" });
+  assert.equal(await denied(), before + 2);
+});
+
+test("each call carries Claude's description of it, when the tool has one", async () => {
+  const base = { sessionId: "s5", project: dir, promptId: "prompt-desc", decision: "allowed" as const };
+  db.insertCall({ ...base, toolUseId: "d1", toolName: "Bash", toolInput: { command: "npm test", description: "Run the tests" } });
+  db.insertCall({ ...base, toolUseId: "d2", toolName: "Read", toolInput: { file_path: "/x/a.ts" } });
+
+  const calls = (await (await api("GET", `/api/calls?project=${encodeURIComponent(dir)}`)).json()) as Array<{
+    toolUseId: string;
+    summary: string;
+    description: string | null;
+  }>;
+  const bash = calls.find((c) => c.toolUseId === "d1")!;
+  assert.deepEqual([bash.description, bash.summary], ["Run the tests", "npm test"]);
+  assert.equal(calls.find((c) => c.toolUseId === "d2")!.description, null);
+});
+
+type ExportedFile = { groups: Array<{ id: string; title: string; allow?: unknown[]; deny?: unknown[] }> };
+
 test("rules can be exported, imported (replace or merge) and reset to defaults", async () => {
-  const exported = (await (await api("GET", "/api/rules/export")).json()) as { allow: unknown[]; deny: unknown[] };
-  assert.ok(exported.allow.length > 10 && exported.deny.length > 10);
+  const exported = (await (await api("GET", "/api/rules/export")).json()) as ExportedFile;
+  assert.ok(exported.groups.length > 10);
+  assert.ok(exported.groups.every((g) => g.id && g.title));
 
   const custom = {
     name: "Team rules",
-    allow: ["Read", { rule: "Shell(git *)", note: "git" }],
-    deny: [{ rule: "Shell(rm *)", note: "no deleting" }],
+    groups: [
+      { id: "files", title: "The agent is allowed to read files", allow: ["Read"] },
+      {
+        id: "git",
+        title: "The agent is allowed to use git, but not to delete",
+        allow: [{ rule: "Shell(git *)", note: "git" }],
+        deny: [{ rule: "Shell(rm *)", note: "no deleting" }],
+      },
+    ],
   };
+  const preview = (await (await api("POST", "/api/rules/import/preview", { file: custom })).json()) as {
+    rules: number;
+    groups: Array<{ key: string; allow: number; deny: number }>;
+    current: { rules: number };
+  };
+  assert.equal(preview.rules, 3);
+  assert.deepEqual(
+    preview.groups.map((g) => [g.key, g.allow, g.deny]),
+    [
+      ["files", 1, 0],
+      ["git", 1, 1],
+    ]
+  );
+  assert.ok(preview.current.rules > 10, "the preview changes nothing");
+
   const replaced = (await (await api("POST", "/api/rules/import", { file: custom, mode: "replace" })).json()) as {
     total: number;
     removed: number;
+    groups: number;
   };
-  assert.equal(replaced.total, 3);
+  assert.deepEqual([replaced.total, replaced.groups], [3, 2]);
   assert.ok(replaced.removed > 10);
 
+  // Merging adds to the group with the same id, and new groups for new ids.
   const merged = (await (
-    await api("POST", "/api/rules/import", { file: { allow: ["Read", "Grep"] }, mode: "merge" })
-  ).json()) as { added: number; total: number };
-  assert.deepEqual([merged.added, merged.total], [1, 4]);
+    await api("POST", "/api/rules/import", {
+      file: {
+        groups: [
+          { id: "files", title: "ignored, the group exists", allow: ["Read", "Grep"] },
+          { id: "docker", title: "The agent is allowed to use Docker", allow: ["Shell(docker *)"] },
+        ],
+      },
+      mode: "merge",
+    })
+  ).json()) as { added: number; total: number; addedGroups: number };
+  assert.deepEqual([merged.added, merged.total, merged.addedGroups], [2, 5, 1]);
+  const groups = (await (await api("GET", "/api/rule-groups")).json()) as Array<{ id: number; key: string; title: string }>;
+  const files = groups.find((g) => g.key === "files")!;
+  assert.equal(files.title, "The agent is allowed to read files");
+  const rules = (await (await api("GET", "/api/rules")).json()) as Array<{ rule: string; group_id: number }>;
+  assert.equal(rules.find((r) => r.rule === "Grep")?.group_id, files.id);
+
+  // Older files without groups still import, as one group.
+  const legacy = (await (
+    await api("POST", "/api/rules/import", { file: { name: "Old", allow: ["Glob"] }, mode: "merge" })
+  ).json()) as { added: number };
+  assert.equal(legacy.added, 1);
 
   // Invalid files change nothing and list every problem.
   const bad = await api("POST", "/api/rules/import", { file: { allow: ["Shell(unclosed", 42] }, mode: "replace" });
   assert.equal(bad.status, 400);
   assert.match(((await bad.json()) as { error: string }).error, /2 problem/);
-  assert.equal(((await (await api("GET", "/api/rules")).json()) as unknown[]).length, 4);
+  assert.equal(((await (await api("GET", "/api/rules")).json()) as unknown[]).length, 6);
 
   const defaults = (await (await api("GET", "/api/rules/defaults")).json()) as { version: number; rules: number };
+  const defaultsPreview = (await (await api("GET", "/api/rules/defaults/preview")).json()) as { rules: number };
+  assert.equal(defaultsPreview.rules, defaults.rules);
   const reset = (await (await api("POST", "/api/rules/reset", { mode: "replace" })).json()) as { total: number };
   assert.equal(reset.total, defaults.rules);
   assert.equal(
     ((await (await api("GET", "/api/rules/defaults")).json()) as { importedVersion: number }).importedVersion,
     defaults.version
   );
+});
 
-  store.setPolicySource("managed");
-  try {
-    assert.equal((await api("POST", "/api/rules/import", { file: custom, mode: "replace" })).status, 403);
-    assert.equal((await api("POST", "/api/rules/reset", { mode: "replace" })).status, 403);
-  } finally {
-    store.setPolicySource("local");
-  }
+test("rule groups: create, add a rule, move, switch off, delete", async () => {
+  const created = await api("POST", "/api/rule-groups", {
+    title: "The agent is not allowed to use curl",
+    description: "downloads",
+  });
+  assert.equal(created.status, 201);
+  const { id: groupId } = (await created.json()) as { id: number };
+  assert.equal((await api("POST", "/api/rule-groups", { title: "  " })).status, 400);
+
+  const rule = (await (
+    await api("POST", "/api/rules", { effect: "deny", rule: "Bash(curl *)", note: null, groupId })
+  ).json()) as { id: number };
+  const test = async () =>
+    (await (await api("POST", "/api/rules/test", { call: "Bash(curl x)" })).json()) as {
+      reason: string | null;
+      rule: { group: string } | null;
+    };
+  assert.equal((await test()).rule?.group, "The agent is not allowed to use curl");
+
+  // Switching the group off switches its rules off.
+  assert.equal((await api("PATCH", `/api/rule-groups/${groupId}`, { enabled: false })).status, 200);
+  assert.equal((await test()).reason, "unlisted");
+  assert.equal((await api("PATCH", `/api/rule-groups/${groupId}`, { enabled: true, title: "No curl" })).status, 200);
+
+  // A rule can move to another group.
+  const other = (await (await api("POST", "/api/rule-groups", { title: "Downloads" })).json()) as { id: number };
+  assert.equal((await api("PATCH", `/api/rules/${rule.id}`, { groupId: other.id })).status, 200);
+  assert.equal((await test()).rule?.group, "Downloads");
+
+  // Deleting a group deletes its rules.
+  assert.equal((await api("DELETE", `/api/rule-groups/${other.id}`)).status, 200);
+  assert.equal((await test()).reason, "unlisted");
+  assert.equal((await api("DELETE", `/api/rule-groups/${other.id}`)).status, 404);
+  assert.equal((await api("DELETE", `/api/rule-groups/${groupId}`)).status, 200);
 });
 
 test("export writes every rule as an object", async () => {
-  const exported = (await (await api("GET", "/api/rules/export")).json()) as { allow: unknown[]; deny: unknown[] };
-  assert.ok([...exported.allow, ...exported.deny].every((e) => typeof e === "object" && e !== null && "rule" in e));
+  const exported = (await (await api("GET", "/api/rules/export")).json()) as ExportedFile;
+  const entries = exported.groups.flatMap((g) => [...(g.allow ?? []), ...(g.deny ?? [])]);
+  assert.ok(entries.length > 100);
+  assert.ok(entries.every((e) => typeof e === "object" && e !== null && "rule" in e));
 });

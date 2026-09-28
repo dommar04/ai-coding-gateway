@@ -1,6 +1,7 @@
 // Activity page: prompt groups, calls, filters, project filter, call details.
-import { $, $$, MAX_CALLS, api, esc, guard, state, ui } from "./core.js";
+import { $, $$, MAX_CALLS, api, esc, guard, state, toast } from "./core.js";
 import { baseName, callRow, decisionBadge, fmtTime, fmtTok, pct, reasonLong, strategyTitle } from "./format.js";
+import { openAllowDialog } from "./allow.js";
 
 // ---------- activity: calls and prompt groups ----------
 export function addToolOption(tool) {
@@ -22,7 +23,6 @@ export function aggregate(g) {
     input: sum((t) => t.input),
     result: sum((t) => t.result),
     saved: sum((t) => (t.result != null ? t.result - (t.resultAfter ?? t.result) : 0)),
-    potential: sum((t) => t.potential),
   };
   g.lastAt = calls.reduce(
     (m, c) => ((c.completedAt || c.startedAt || "") > m ? c.completedAt || c.startedAt : m),
@@ -53,14 +53,13 @@ export function upsertCalls(list, markNew) {
   for (const c of list) {
     if (!knownProject(c.project)) addProjectOption(c.project, 1);
     if (state.project && c.project !== state.project) continue;
-    if (markNew && state.project) scheduleProjectTokens();
     const existing = state.calls.get(c.id);
     const merged = { ...existing, ...c, _new: markNew && !existing };
     state.calls.set(c.id, merged);
     addToolOption(c.tool);
     if (!c.promptId) continue;
     let g = state.prompts.get(c.promptId);
-    if (!g && !markNew) continue; // older prompt outside the loaded groups: flat view only
+    if (!g && !markNew) continue; // older prompt outside the loaded groups
     if (!g) {
       g = { promptId: c.promptId, text: null, at: c.startedAt, project: c.project, calls: [], usage: null, _new: markNew };
       state.prompts.set(c.promptId, g);
@@ -101,7 +100,7 @@ export function matches(c) {
     (!state.project || c.project === state.project) &&
     (!tool || c.tool === tool) &&
     (!decision || c.decision === decision) &&
-    (!text || `${c.summary} ${c.project} ${c.tool}`.toLowerCase().includes(text))
+    (!text || `${c.description ?? ""} ${c.summary} ${c.project} ${c.tool}`.toLowerCase().includes(text))
   );
 }
 
@@ -120,9 +119,9 @@ export function renderGrouped() {
       if (filtering && !calls.length) return "";
       const open = state.expanded.has(g.promptId);
       const blocked = g.denied
-        ? `<span class="pill bad">${g.denied} blocked</span>`
+        ? `<span class="pill bad">${g.denied} denied</span>`
         : g.wouldDeny
-          ? `<span class="pill warn">${g.wouldDeny} would block</span>`
+          ? `<span class="pill warn">${g.wouldDeny} denied</span>`
           : "";
       const t = g.tokens || {};
       const text = g.text
@@ -142,34 +141,24 @@ export function renderGrouped() {
       ${
         open
           ? `<div class="pg-body"><table><thead><tr><th>Time</th><th>Tool</th><th>Call</th><th>Tokens</th><th>Decision</th><th>Status</th></tr></thead>
-        <tbody>${calls.map((c) => callRow(c, false)).join("")}</tbody></table></div>`
+        <tbody>${calls.map(callRow).join("")}</tbody></table></div>`
           : ""
       }
     </div>`;
     })
     .join("");
-  const ungrouped = [...state.calls.values()].filter((c) => !c.promptId).length;
-  $("#grouped-view").innerHTML =
-    html +
-    (ungrouped
-      ? `<div class="empty compact">${ungrouped} older call(s) without a prompt link are only in <a href="#" data-view-link="flat">All calls</a>.</div>`
-      : "");
+  $("#grouped-view").innerHTML = html;
   for (const g of state.prompts.values()) g._new = false;
 }
 
 export function renderCalls() {
   const all = [...state.calls.values()];
-  const rows = all.sort((a, b) => b.id - a.id).filter(matches);
-  $("#grouped-view").hidden = state.view !== "grouped";
-  $("#flat-view").hidden = state.view !== "flat";
-  $$("#view-toggle button").forEach((b) => b.classList.toggle("on", b.dataset.view === state.view));
-  if (state.view === "grouped") renderGrouped();
-  else $("#calls tbody").innerHTML = rows.map((c) => callRow(c, true)).join("");
+  const rows = all.filter(matches);
+  renderGrouped();
   for (const c of state.calls.values()) c._new = false;
   $("#calls-empty").hidden = state.calls.size > 0;
-  $("#k-blocked").textContent = all.filter((c) => c.decision === "denied" || c.decision === "would_deny").length;
   $("#calls-count").textContent =
-    (state.view === "grouped" ? `${state.prompts.size} prompts · ` : "") +
+    `${state.prompts.size} prompts · ` +
     `Showing ${rows.length} of ${state.calls.size} calls` +
     (state.queued.length ? ` · ${state.queued.length} new while paused` : "");
 }
@@ -202,15 +191,6 @@ export function addProjectOption(project, calls) {
   state.projects.unshift({ project, calls, lastAt: new Date().toISOString() });
   renderProjectOptions();
 }
-export let projectTokensTimer;
-export function scheduleProjectTokens() {
-  clearTimeout(projectTokensTimer);
-  projectTokensTimer = setTimeout(guard(loadProjectTokens), 1500);
-}
-export async function loadProjectTokens() {
-  state.projectTokens = state.project ? await api("GET", `/api/tokens?project=${encodeURIComponent(state.project)}`) : null;
-  ui.renderStats();
-}
 /** (Re)loads groups and calls, for the selected project only when one is set. */
 export async function loadActivity() {
   const q = state.project ? `&project=${encodeURIComponent(state.project)}` : "";
@@ -219,7 +199,6 @@ export async function loadActivity() {
   state.expanded.clear();
   setPrompts(await api("GET", `/api/prompts?limit=40${q}`));
   upsertCalls(await api("GET", `/api/calls?limit=300${q}`), false);
-  await loadProjectTokens();
 }
 $("#f-project").addEventListener(
   "change",
@@ -233,21 +212,7 @@ $("#f-project").addEventListener(
 );
 
 ["#f-text", "#f-tool", "#f-decision"].forEach((s) => $(s).addEventListener("input", renderCalls));
-export function setView(view) {
-  state.view = view;
-  try {
-    localStorage.setItem("apichap-gateway-view", view);
-  } catch {}
-  renderCalls();
-}
-$$("#view-toggle button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 $("#grouped-view").addEventListener("click", (e) => {
-  const link = e.target.closest("[data-view-link]");
-  if (link) {
-    e.preventDefault();
-    setView(link.dataset.viewLink);
-    return;
-  }
   const head = e.target.closest(".pg-head");
   if (!head) return;
   const pid = head.closest(".pg").dataset.pid;
@@ -269,22 +234,28 @@ $("#pause").addEventListener("click", () => {
 
 // ---------- call details ----------
 
+let detailCall = null;
+
+/** The command of a shell call, shown on its own above the input; null for other tools. */
+const shellCommand = (c) =>
+  (c.tool === "Bash" || c.tool === "PowerShell") && typeof c.input?.command === "string" ? c.input.command : null;
+
 export async function openCall(id) {
   const c = await api("GET", `/api/calls/${id}`);
+  detailCall = c;
   if (!state.strategies.length) state.strategies = (await api("GET", "/api/reduction")).strategies;
   $("#detail-title").textContent = `${c.tool} · call #${c.id}`;
   const json = (v) => esc(typeof v === "string" ? v : JSON.stringify(v, null, 2));
   const t = c.tokens || {};
   const saved = t.result != null ? t.result - (t.resultAfter ?? t.result) : 0;
   const breakdown = (Array.isArray(c.reduction) ? c.reduction : [])
-    .map(
-      (b) =>
-        `<span>${esc(strategyTitle(b.id))}${b.state === "measure" ? ' <span class="measured">(measure only)</span>' : ""}</span><span class="${b.state === "on" ? "saved" : "measured"}">−${fmtTok(b.saved)}</span>`
-    )
+    .map((b) => `<span>${esc(strategyTitle(b.id))}</span><span class="saved">−${fmtTok(b.saved)}</span>`)
     .join("");
   const rewrite = c.inputRewrite && c.inputRewrite.applied ? c.inputRewrite : null;
+  const command = shellCommand(c);
   $("#detail-body").innerHTML = `
     <dl>
+      ${c.description ? `<dt>Description</dt><dd>${esc(c.description)}</dd>` : ""}
       <dt>Decision</dt><dd>${decisionBadge(c.decision)}${reasonLong(c)}</dd>
       <dt>Started</dt><dd>${esc(fmtTime(c.startedAt))}${c.durationMs != null ? ` · took ${(c.durationMs / 1000).toFixed(2)}s` : ""}</dd>
       <dt>Project</dt><dd class="mono">${esc(c.project)}</dd>
@@ -295,10 +266,15 @@ export async function openCall(id) {
     <dl class="flush">
       <dt>Claude wrote</dt><dd>${fmtTok(t.input)} tokens for the call</dd>
       <dt>Result</dt><dd>${t.result == null ? "—" : `${fmtTok(t.result)} tokens`}${saved > 0 ? ` → Claude received <b>${fmtTok(t.resultAfter)}</b> <span class="saved">(−${fmtTok(saved)}, ${pct(saved, t.result)}%)</span>` : ""}</dd>
-      ${t.potential ? `<dt>Possible</dt><dd class="measured">Measure options would save ${fmtTok(t.potential)} more</dd>` : ""}
     </dl>
     ${breakdown ? `<div class="breakdown">${breakdown}</div>` : ""}
     ${rewrite ? `<h3>Changed before it ran</h3><div class="muted text13">${rewrite.applied.map((id) => esc(strategyTitle(id))).join(", ")}</div><pre>${json(rewrite.notes.join("\n"))}</pre>` : ""}
+    ${
+      command !== null
+        ? `<h3>Command</h3><div class="cmd-view"><pre class="cmd"><span class="prompt">${c.tool === "PowerShell" ? "PS&gt; " : "$ "}</span>${esc(command)}</pre>
+      <button class="btn sm" type="button" data-copy>Copy</button></div>`
+        : ""
+    }
     <h3>Input</h3><pre>${json(c.input)}</pre>
     ${
       c.reducedResult != null
@@ -311,7 +287,7 @@ export async function openCall(id) {
 }
 
 $("#page-calls").addEventListener("click", (e) => {
-  if (e.target.closest("a")) return; // e.g. the approval request link in a row
+  if (e.target.closest("a")) return;
   const tr = e.target.closest("tr[data-id]");
   if (tr) guard(openCall)(tr.dataset.id);
 });
@@ -322,6 +298,18 @@ $("#detail-body").addEventListener("click", (e) => {
     $$("#detail-body [data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== tab.dataset.tab));
     return;
   }
+  if (e.target.closest("[data-copy]") && detailCall) {
+    navigator.clipboard.writeText(shellCommand(detailCall) ?? "").then(
+      () => toast("Command copied"),
+      () => toast("Could not copy the command", true)
+    );
+    return;
+  }
+  if (e.target.closest("[data-allow]") && detailCall) {
+    const id = detailCall.id;
+    guard(openAllowDialog)(detailCall, { onChange: () => guard(openCall)(id), onLeave: closeDetail });
+    return;
+  }
   if (e.target.closest("a")) closeDetail();
 });
 export const closeDetail = () => {
@@ -329,4 +317,57 @@ export const closeDetail = () => {
   $("#detail").setAttribute("aria-hidden", "true");
 };
 $("#detail-close").addEventListener("click", closeDetail);
-document.addEventListener("keydown", (e) => e.key === "Escape" && closeDetail());
+// Escape inside the allow dialog closes only the dialog.
+document.addEventListener("keydown", (e) => e.key === "Escape" && !$("#allow-dialog").open && closeDetail());
+
+// ---------- resizing the details (drag the left edge; the width is remembered) ----------
+const DRAWER_KEY = "apichap-gateway-drawer-width";
+const DRAWER_MIN = 360;
+const drawerMax = () => Math.max(DRAWER_MIN, window.innerWidth - 80);
+function setDrawerWidth(px) {
+  const w = Math.round(Math.min(Math.max(px, DRAWER_MIN), drawerMax()));
+  $("#detail").style.setProperty("--drawer-w", `${w}px`);
+  return w;
+}
+function saveDrawerWidth(w) {
+  try {
+    if (w === null) localStorage.removeItem(DRAWER_KEY);
+    else localStorage.setItem(DRAWER_KEY, String(w));
+  } catch {}
+}
+try {
+  const saved = Number(localStorage.getItem(DRAWER_KEY));
+  if (saved > 0) setDrawerWidth(saved);
+} catch {}
+
+const handle = $("#detail-resize");
+handle.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  handle.setPointerCapture(e.pointerId);
+  $("#detail").classList.add("resizing");
+  document.body.classList.add("resizing");
+});
+handle.addEventListener("pointermove", (e) => {
+  if (handle.hasPointerCapture(e.pointerId)) setDrawerWidth(window.innerWidth - e.clientX);
+});
+const endResize = (e) => {
+  if (!handle.hasPointerCapture(e.pointerId)) return;
+  handle.releasePointerCapture(e.pointerId);
+  $("#detail").classList.remove("resizing");
+  document.body.classList.remove("resizing");
+  saveDrawerWidth(setDrawerWidth(window.innerWidth - e.clientX));
+};
+handle.addEventListener("pointerup", endResize);
+handle.addEventListener("pointercancel", endResize);
+handle.addEventListener("dblclick", () => {
+  $("#detail").style.removeProperty("--drawer-w");
+  saveDrawerWidth(null);
+});
+// Keyboard: arrow keys make the details wider or narrower.
+handle.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  e.preventDefault();
+  const current = $("#detail").getBoundingClientRect().width;
+  saveDrawerWidth(setDrawerWidth(current + (e.key === "ArrowLeft" ? 40 : -40)));
+});

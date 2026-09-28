@@ -33,7 +33,7 @@ export interface AfterToolCall {
   additionalContext?: string;
 }
 
-const ALLOWED: SecurityCheck = { decision: "allowed", ruleId: null, requestId: null, message: null };
+const ALLOWED: SecurityCheck = { decision: "allowed", ruleId: null, message: null };
 
 export function beforeToolCall(call: ToolCall): BeforeToolCall {
   const mode = effectiveMode();
@@ -55,7 +55,7 @@ export function beforeToolCall(call: ToolCall): BeforeToolCall {
 }
 
 /**
- * The gateway itself failed before a call. In enforce mode the call is blocked (fail closed);
+ * The gateway itself failed before a call. In enforce mode the call is denied (fail closed);
  * otherwise it runs. If even the mode can't be read, enforce is assumed.
  */
 export function beforeToolCallFailed(err: unknown): BeforeToolCall {
@@ -95,7 +95,6 @@ export function afterToolCall(call: ToolCall, result: ToolResult): AfterToolCall
     inputTokens: inputTokens(call.toolInput),
     resultTokens: reduced?.resultTokens ?? null,
     resultTokensAfter: reduced?.resultTokensAfter ?? null,
-    savedPotential: reduced?.savedPotential ?? null,
     reduction: reduced?.breakdown.length ? reduced.breakdown : undefined,
     reducedResult: reduced?.response,
   });
@@ -125,7 +124,6 @@ function record(call: ToolCall, check: SecurityCheck, inputRewrite?: unknown): v
     inputTokens: inputTokens(call.toolInput),
     decision: check.decision,
     ruleId: check.ruleId,
-    requestId: check.requestId,
     inputRewrite,
   });
   emitEvent({
@@ -135,6 +133,5 @@ function record(call: ToolCall, check: SecurityCheck, inputRewrite?: unknown): v
     toolName: call.toolName,
     decision: check.decision,
     ruleId: check.ruleId,
-    requestId: check.requestId,
   });
 }

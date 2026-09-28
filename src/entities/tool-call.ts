@@ -22,5 +22,5 @@ export interface ToolResult {
   durationMs?: number | null;
 }
 
-/** What the gateway decided for a call: allowed, blocked, or would be blocked (monitor mode). */
+/** What the gateway decided for a call: allowed, denied, or denied (monitor mode). */
 export type CallDecision = "allowed" | "denied" | "would_deny";

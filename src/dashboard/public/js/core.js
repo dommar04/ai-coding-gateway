@@ -49,28 +49,21 @@ export const state = {
   calls: new Map(),
   prompts: new Map(),
   expanded: new Set(),
-  view: "grouped",
   paused: false,
   queued: [],
   rules: [],
-  requests: [],
+  groups: [],
+  openGroups: new Set(),
+  editingGroup: null,
   strategies: [],
   tools: new Set(),
-  reqStatus: "pending",
   ruleEffect: "",
   page: "calls",
 };
 export const MAX_CALLS = 1000;
-export const managed = () => state.stats && state.stats.policySource === "managed";
 
-/** Hooks filled in by main.js, so page modules can refresh shared UI without importing main. */
-export const ui = { renderStats: () => {} };
-try {
-  state.view = localStorage.getItem("apichap-gateway-view") || "grouped";
-} catch {}
 state.project = "";
 state.projects = [];
-state.projectTokens = null;
 try {
   state.project = localStorage.getItem("apichap-gateway-project") || "";
 } catch {}

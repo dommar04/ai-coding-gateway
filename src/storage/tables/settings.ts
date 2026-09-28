@@ -1,6 +1,6 @@
 import { sql } from "../database";
 
-// Table settings: key/value pairs (mode, policy_source, defaults_version, reduction:<id>, ...).
+// Table settings: key/value pairs (mode, defaults_version, reduction:<id>, ...).
 
 export function getSetting(key: string): string | undefined {
   return (sql(`SELECT value FROM settings WHERE key = ?`).get(key) as { value: string } | undefined)?.value;

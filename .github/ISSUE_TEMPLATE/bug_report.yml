@@ -33,5 +33,5 @@ body:
     id: errors
     attributes:
       label: Errors
-      description: Relevant lines from `~/.apichap-gateway/errors.log`, if any.
+      description: Relevant lines from `~/.ai-coding-gateway/errors.log`, if any.
       render: text

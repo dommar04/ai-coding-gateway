@@ -9,10 +9,26 @@ import {
   type ImportMode,
 } from "../services/tool-security/rule-files/rule-sets";
 import { readRuleFile } from "../services/tool-security/rule-files/rule-file";
-import { addRule, evaluateCall, listRules, removeRule, setRuleEnabled } from "../services/tool-security/rules";
+import {
+  addGroup,
+  addRule,
+  evaluateCall,
+  listGroups,
+  listRules,
+  moveRule,
+  removeGroup,
+  removeRule,
+  resolveGroup,
+  setRuleEnabled,
+  updateGroup,
+} from "../services/tool-security/rules";
 import { fail, parseArgs, parseId } from "./args";
 
-// rules: list, add, enable/disable/remove, test, export, import, reset.
+// rules: list, add, enable/disable/remove, move, groups, test, export, import, reset.
+
+/** A group given on the command line: its key, or its numeric id. */
+const groupRef = (value: string | true | undefined) =>
+  typeof value !== "string" ? undefined : /^#?\d+$/.test(value) ? Number(value.replace("#", "")) : value;
 
 export function runRules(args: string[]): void {
   const [action, ...rest] = args;
@@ -22,22 +38,25 @@ export function runRules(args: string[]): void {
     case undefined:
     case "list": {
       const rules = listRules();
-      for (const effect of ["deny", "allow"] as const) {
-        console.log(effect === "deny" ? "DENY rules (checked first):" : "\nALLOW rules:");
-        for (const r of rules.filter((x) => x.effect === effect)) {
+      for (const g of listGroups()) {
+        const mine = rules.filter((r) => r.group_id === g.id);
+        console.log(`\n${g.title}${g.enabled ? "" : "  [group disabled]"}   (${g.key})`);
+        for (const r of [...mine.filter((x) => x.effect === "deny"), ...mine.filter((x) => x.effect === "allow")]) {
           const off = r.enabled ? "" : "  [disabled]";
-          console.log(`  #${String(r.id).padEnd(4)} ${r.rule.padEnd(45)} ${r.note ?? ""}${off}`);
+          console.log(`  #${String(r.id).padEnd(4)} ${r.effect.padEnd(5)} ${r.rule.padEnd(45)} ${r.note ?? ""}${off}`);
         }
+        if (!mine.length) console.log("  (no rules)");
       }
+      console.log("\nDeny rules always win. Anything no allow rule covers is denied too.");
       return;
     }
     case "add": {
       const [effect, rule] = positional;
       if ((effect !== "allow" && effect !== "deny") || !rule) {
-        fail('Usage: apichap-gateway rules add allow|deny "Tool(pattern)" [--note "why"]');
+        fail('Usage: apichap-gateway rules add allow|deny "Tool(pattern)" [--note "why"] [--group <key>]');
       }
       const note = typeof flags.note === "string" ? flags.note : null;
-      const id = addRule(effect, rule, note, "manual");
+      const id = addRule(effect, rule, note, "manual", groupRef(flags.group));
       console.log(`Added ${effect} rule #${id}: ${rule}`);
       return;
     }
@@ -47,6 +66,42 @@ export function runRules(args: string[]): void {
       if (!setRuleEnabled(id, action === "enable")) fail(`Rule #${id} does not exist.`);
       console.log(`Rule #${id} ${action}d.`);
       return;
+    }
+    case "move": {
+      const id = parseId(positional[0]);
+      const group = groupRef(positional[1]);
+      if (group === undefined) fail("Usage: apichap-gateway rules move <id> <group key>");
+      if (!moveRule(id, group)) fail(`Rule #${id} does not exist.`);
+      console.log(`Rule #${id} moved to ${positional[1]}.`);
+      return;
+    }
+    case "groups": {
+      const [sub, ...more] = positional;
+      if (sub === undefined || sub === "list") {
+        const rules = listRules();
+        for (const g of listGroups()) {
+          const n = rules.filter((r) => r.group_id === g.id).length;
+          console.log(`  ${g.key.padEnd(28)} ${String(n).padStart(3)} rules  ${g.title}${g.enabled ? "" : "  [disabled]"}`);
+        }
+        return;
+      }
+      if (sub === "add") {
+        if (!more[0]) fail('Usage: apichap-gateway rules groups add "The agent is not allowed to ..." [--description "why"]');
+        const description = typeof flags.description === "string" ? flags.description : null;
+        const id = addGroup(more[0], description, "manual");
+        console.log(`Added rule group #${id}: ${more[0]}`);
+        return;
+      }
+      if (sub === "enable" || sub === "disable" || sub === "remove") {
+        const ref = groupRef(more[0]);
+        if (ref === undefined) fail(`Usage: apichap-gateway rules groups ${sub} <group key>`);
+        const id = resolveGroup(ref);
+        if (sub === "remove") removeGroup(id);
+        else updateGroup(id, { enabled: sub === "enable" });
+        console.log(`Rule group ${more[0]} ${sub === "remove" ? "removed with its rules" : sub + "d"}.`);
+        return;
+      }
+      fail(`Unknown groups action "${sub}". Use list, add, enable, disable or remove.`);
     }
     case "remove": {
       const id = parseId(positional[0]);
@@ -70,8 +125,8 @@ export function runRules(args: string[]): void {
       const r = importRules(readRuleFile(positional[0]), mode);
       console.log(
         mode === "replace"
-          ? `Replaced all rules: removed ${r.removed}, imported ${r.added}. Now ${r.total} rules.`
-          : `Merged: added ${r.added} new rules. Now ${r.total} rules.`
+          ? `Replaced all rules: removed ${r.removed}, imported ${r.added} in ${r.groups} groups. Now ${r.total} rules.`
+          : `Merged: added ${r.added} new rules and ${r.addedGroups} new groups. Now ${r.total} rules.`
       );
       return;
     }
@@ -81,8 +136,8 @@ export function runRules(args: string[]): void {
       const d = defaultsStatus();
       console.log(
         mode === "replace"
-          ? `Reset to ${d.name} v${d.version}: removed ${r.removed}, imported ${r.added}. Now ${r.total} rules.`
-          : `Added ${r.added} missing rules from ${d.name} v${d.version}. Now ${r.total} rules.`
+          ? `Reset to ${d.name} v${d.version}: removed ${r.removed}, imported ${r.added} in ${r.groups} groups. Now ${r.total} rules.`
+          : `Added ${r.added} missing rules and ${r.addedGroups} groups from ${d.name} v${d.version}. Now ${r.total} rules.`
       );
       return;
     }
@@ -100,9 +155,10 @@ export function runRules(args: string[]): void {
         console.log("\nVerdict: ALLOWED");
       } else if (verdict.reason === "rule") {
         console.log(`\nVerdict: DENIED by rule #${verdict.rule.id} ${verdict.rule.rule} (${verdict.rule.note ?? ""})`);
+        if (verdict.rule.group_title) console.log(`         policy: ${verdict.rule.group_title}`);
         if (verdict.matched) console.log(`         matched on: ${verdict.matched}`);
       } else {
-        console.log("\nVerdict: DENIED (not on the allowlist, would file an approval request)");
+        console.log("\nVerdict: DENIED (no allow rule covers it)");
       }
       return;
     }

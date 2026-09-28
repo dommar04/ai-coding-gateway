@@ -1,3 +1,15 @@
+/** The description Claude gave for the call (Bash, Agent, Task, …), or null when the tool has none. */
+export function inputDescription(toolInputJson: string | null): string | null {
+  if (!toolInputJson) return null;
+  try {
+    const input = JSON.parse(toolInputJson) as Record<string, unknown>;
+    const d = input !== null && typeof input === "object" ? input.description : undefined;
+    return typeof d === "string" && d.trim() ? d.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** One-line description of a tool call's input (command, path, pattern or URL), used by the CLI and dashboard. */
 export function summarizeInput(toolInputJson: string | null): string {
   if (!toolInputJson) return "";

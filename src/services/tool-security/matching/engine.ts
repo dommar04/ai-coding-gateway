@@ -6,6 +6,8 @@ export interface Rule {
   effect: "allow" | "deny";
   rule: string;
   note: string | null;
+  /** Title of the rule's group, the policy in plain words. */
+  group_title?: string | null;
 }
 
 export interface CallContext {
@@ -45,7 +47,7 @@ function compile(rules: Rule[]): CompiledRule[] {
 /**
  * 1. Any deny rule matching the whole command or any part -> deny.
  * 2. Every part covered by an allow rule -> allow.
- * 3. Otherwise -> deny as unlisted (becomes an approval request).
+ * 3. Otherwise -> deny as unlisted.
  */
 export function evaluate(call: CallContext, rules: Rule[]): Verdict {
   const compiled = compile(rules);
