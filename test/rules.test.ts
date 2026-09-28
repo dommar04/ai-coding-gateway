@@ -6,17 +6,20 @@ import { splitCommand } from "../src/services/tool-security/matching/shell";
 import { evaluate, type Rule } from "../src/services/tool-security/matching/engine";
 import { suggestRules, broadCommandPattern } from "../src/services/tool-security/matching/suggest";
 import { extractSubject } from "../src/services/tool-security/matching/pattern";
-import { loadDefaultRuleFile, normalizeRuleFile } from "../src/services/tool-security/rule-files/rule-file";
+import { loadDefaultRuleFile, normalizeRuleFile, parseRuleFile } from "../src/services/tool-security/rule-files/rule-file";
 import { denyMessage } from "../src/services/tool-security/messages";
 
 const CWD = process.platform === "win32" ? "C:\\work\\proj" : "/work/proj";
 const HOME = process.platform === "win32" ? "C:\\Users\\me" : "/home/me";
-const seedRules: Rule[] = normalizeRuleFile(loadDefaultRuleFile()).map((r, i) => ({
-  id: i + 1,
-  effect: r.effect,
-  rule: r.rule,
-  note: r.note,
-}));
+const seedRules: Rule[] = parseRuleFile(loadDefaultRuleFile())
+  .flatMap((g) => g.rules.map((r) => ({ ...r, group_title: g.title })))
+  .map((r, i) => ({
+    id: i + 1,
+    effect: r.effect,
+    rule: r.rule,
+    note: r.note,
+    group_title: r.group_title,
+  }));
 
 const run = (toolName: string, toolInput: unknown, rules = seedRules) =>
   evaluate({ toolName, toolInput, cwd: CWD, home: HOME }, rules);
@@ -107,7 +110,7 @@ test("gateway protection matches running the gateway, not mentioning it", () => 
     "npx -y apichap-ai-coding-gateway uninstall",
     "cd x && node C:/npm/node_modules/apichap-ai-coding-gateway/dist/cli.js rules",
     "node C:\\npm\\node_modules\\apichap-ai-coding-gateway\\dist\\main.js mode off",
-    "cat ~/.apichap-gateway/gateway.sqlite",
+    "cat ~/.ai-coding-gateway/gateway.sqlite",
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
@@ -159,7 +162,10 @@ test("PowerShell rules are case-insensitive", () => {
 test("file tools: project files allowed, secrets and outside paths not", () => {
   const inProject = CWD + (process.platform === "win32" ? "\\src\\a.ts" : "/src/a.ts");
   assert.equal(run("Edit", { file_path: inProject }).decision, "allow");
-  assert.equal(run("Read", { file_path: "/etc/passwd" }).decision, "allow");
+  assert.equal(run("Read", { file_path: inProject }).decision, "allow");
+  // Reading outside the project is not covered by an allow rule.
+  const passwd = run("Read", { file_path: "/etc/passwd" });
+  assert.ok(passwd.decision === "deny" && passwd.reason === "unlisted");
 
   const envFile = CWD + (process.platform === "win32" ? "\\.env.local" : "/.env.local");
   const env = run("Read", { file_path: envFile });
@@ -176,17 +182,36 @@ test("file tools: project files allowed, secrets and outside paths not", () => {
 
 test("the agent cannot manage the gateway itself", () => {
   for (const cmd of [
-    "apichap-gateway requests approve 3",
+    "apichap-gateway rules enable 3",
     "apichap-gateway rules add allow x",
     "apichap-gateway mode off",
     "apichap-gateway dashboard --no-open",
-    "npx apichap-ai-coding-gateway policy local",
+    "npx apichap-ai-coding-gateway rules reset",
     "npx apichap-ai-coding-gateway uninstall",
     "pnpm dlx apichap-ai-coding-gateway init",
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
   }
+});
+
+test("search tools are checked by the folder they search", () => {
+  const sep = process.platform === "win32" ? "\\" : "/";
+  // No path: the project folder itself.
+  assert.equal(run("Grep", { pattern: "x" }).decision, "allow");
+  assert.equal(run("Glob", { pattern: "**/*.ts", path: "src" }).decision, "allow");
+  const outside = run("Grep", { pattern: "x", path: HOME });
+  assert.ok(outside.decision === "deny" && outside.reason === "unlisted");
+  const ssh = run("Grep", { pattern: "x", path: HOME + sep + ".ssh" });
+  assert.ok(ssh.decision === "deny" && ssh.reason === "rule");
+  const env = run("Grep", { pattern: "x", path: ".env" });
+  assert.ok(env.decision === "deny" && env.reason === "rule");
+
+  const subject = extractSubject("Grep", { pattern: "x", path: HOME + sep + "other" }, CWD);
+  assert.deepEqual(suggestRules("Grep", subject, [], CWD, HOME), {
+    exact: ["Grep({home}/other)"],
+    broad: ["Grep({home}/other/**)"],
+  });
 });
 
 test("unknown tools are denied as unlisted, known tool-only rules allow", () => {
@@ -231,18 +256,36 @@ test("suggestions: exact and broad rules", () => {
   });
 });
 
-test("deny message tells the agent about admin approval", () => {
+test("deny message tells the agent the user can allow the call from the dashboard", () => {
   const v = bash("docker compose up");
-  const msg = denyMessage("Bash", v, 42);
-  assert.match(msg, /approval request #42/);
-  assert.match(msg, /admins/);
+  const msg = denyMessage("Bash", v);
+  assert.match(msg, /No allow rule covers: `docker compose up`/);
+  assert.match(msg, /Activity page/);
   assert.match(msg, /cannot continue without it/);
+  assert.doesNotMatch(msg, /approval request|admin/);
+
+  // A deny rule's message names the policy it belongs to.
+  const blocked = bash("rm -rf dist");
+  assert.match(denyMessage("Bash", blocked), /Policy: The agent is not allowed to delete files\./);
 });
 
-test("the default rule file uses objects only and matches its schema's rule format", () => {
+test("the default rule file is grouped, uses objects only and matches its schema", () => {
   const file = loadDefaultRuleFile();
-  const entries = [...(file.allow ?? []), ...(file.deny ?? [])];
+  assert.ok(Array.isArray(file.groups) && file.groups.length > 10);
+  assert.equal(file.allow, undefined, "no rules outside groups");
+  assert.equal(file.deny, undefined, "no rules outside groups");
+  for (const g of file.groups) {
+    assert.match(g.id, /^[a-z0-9][a-z0-9-]*$/, g.id);
+    assert.match(g.title, /^The agent is (not )?allowed to /, `${g.id}: the title says what the agent may or may not do`);
+    assert.ok(g.description, `${g.id} explains why`);
+    assert.ok((g.allow?.length ?? 0) + (g.deny?.length ?? 0) > 0, `${g.id} has rules`);
+    // A group reads as one policy: "not allowed" groups block, "allowed" groups allow.
+    const blocks = g.title.includes("not allowed");
+    assert.equal(blocks ? g.allow : g.deny, undefined, `${g.id}: rules match the title`);
+  }
+  const entries = file.groups.flatMap((g) => [...(g.allow ?? []), ...(g.deny ?? [])]);
   assert.ok(entries.length > 100);
+  assert.equal(normalizeRuleFile(file).length, entries.length, "no rule appears twice");
   assert.ok(
     entries.every((e) => typeof e === "object" && typeof e.rule === "string"),
     "every entry is an object with a rule"
@@ -250,10 +293,6 @@ test("the default rule file uses objects only and matches its schema's rule form
   assert.ok(
     entries.every((e) => typeof e === "object" && Object.keys(e).every((k) => ["rule", "note", "enabled"].includes(k))),
     "no unknown fields"
-  );
-  assert.ok(
-    (file.deny ?? []).every((e) => typeof e === "object" && e.note),
-    "every deny rule has a note"
   );
   assert.equal(file.$schema, "./rule-file.schema.json");
 });
@@ -297,6 +336,26 @@ test("scripts may run, inline code and code-injecting environment variables may 
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
   }
+});
+
+test("a trailing /** also matches the folder itself", () => {
+  const rules: Rule[] = [{ id: 1, effect: "allow", rule: "Glob({cwd}/**)", note: null }];
+  assert.equal(run("Glob", { pattern: "*" }, rules).decision, "allow");
+  assert.equal(run("Glob", { pattern: "*", path: CWD + "-other" }, rules).decision, "deny");
+});
+
+test("old rule files without groups import as one group", () => {
+  const groups = parseRuleFile({ name: "Team rules", allow: ["Read"], deny: [{ rule: "Shell(rm *)", note: "no" }] });
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].title, "Team rules");
+  assert.deepEqual(
+    groups[0].rules.map((r) => [r.effect, r.rule]),
+    [
+      ["allow", "Read"],
+      ["deny", "Shell(rm *)"],
+    ]
+  );
+  assert.throws(() => parseRuleFile({ groups: [{ id: "Bad Id", deny: ["Shell(x"] }] }), /3 problem/);
 });
 
 test("{tmp} matches the system temp folder", () => {

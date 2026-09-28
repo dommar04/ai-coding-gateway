@@ -18,7 +18,7 @@ Run the CLI from source with `npx tsx src/main.ts <command>`, for example `npx t
 
 ### Trying it without touching your real data
 
-Set `APICHAP_GATEWAY_DIR` to a scratch folder. The database, error log and spill files then go there instead of `~/.apichap-gateway`:
+Set `APICHAP_GATEWAY_DIR` to a scratch folder. The database, error log and spill files then go there instead of `~/.ai-coding-gateway`:
 
 ```bash
 APICHAP_GATEWAY_DIR=/tmp/gw npx tsx src/main.ts dashboard
@@ -39,7 +39,7 @@ src/
   commands/                        one file per command group; index.ts is the command table
     hook.ts                        hook pre|post|session (what Claude Code runs for every tool call)
     setup.ts                       init / uninstall
-    dashboard.ts  rules.ts  requests.ts  settings.ts  reduction.ts  activity.ts
+    dashboard.ts  rules.ts  settings.ts  reduction.ts  activity.ts
   integrations/                    connections to AI coding agents; everything agent-specific lives here
     claude/
       hooks/pre-tool-use.ts        PreToolUse  → gateway.beforeToolCall()
@@ -56,23 +56,24 @@ src/
     gateway.ts                     the workflow: security check → input reduction → log; result reduction → log
     tool-security/
       index.ts                     checkToolSecurity()
-      rules.ts  requests.ts        managing rules, approval requests
-      messages.ts                  what the agent is told when a call is blocked
+      rules.ts                     managing rules and rule groups
+      allow-call.ts                allowing a denied call from the activity (exact / broad / custom rule)
+      messages.ts                  what the agent is told when a call is denied
       matching/                    rule engine, wildcard patterns, command splitting, rule suggestions
       rule-files/                  rule file format, import / export / defaults
     reduction/
       index.ts                     rewriteToolInput() / reduceToolResult()
-      pipeline.ts                  runs the strategies over a result (on / measure / off)
+      pipeline.ts                  runs the strategies that are on over a result
       options.ts                   every strategy's state and savings
       strategies/                  one file per output strategy (ansi.ts, test-output.ts, paging.ts, ...)
       input-strategies/            one file per input strategy (read-limit.ts, grep-limit.ts, ...)
       adapters/                    one file per tool result shape (shell.ts, read.ts, mcp.ts, ...)
     activity/events.ts             event sinks (e.g. a central audit log later)
-    settings/                      enforcement mode, policy source (local / managed)
+    settings/                      enforcement mode
   storage/                         all SQL lives here
     database.ts                    connection, pragmas, prepared-statement cache, transactions, migration runner
-    migrations/                    numbered migrations (001-initial-schema.ts, 002-default-rules.ts, ...)
-    tables/                        one file per table with all its queries (tool-calls.ts, tool-rules.ts, ...)
+    migrations/                    numbered migrations (001-initial-schema.ts, 002-default-rules.ts, 003-rule-groups.ts, ...)
+    tables/                        one file per table with all its queries (tool-calls.ts, tool-rules.ts, rule-groups.ts, ...)
   entities/                        shared types (ToolCall, ToolResult, ...)
   helpers/                         small utilities (JSON, paths, errors, call summary)
 rules/                             default rules and the rule-file JSON Schema
@@ -94,21 +95,21 @@ test/                              tests; test/fixtures/ holds realistic tool ou
 
 ### Adding or changing default rules
 
-1. Edit `rules/default-rules.json`. Use one rule per line, `Shell(...)` for Bash and PowerShell, and a `note` on every deny rule. The note is what Claude and the user see when the rule blocks.
+1. Edit `rules/default-rules.json`. Put the rule into the group whose policy it implements, or add a group: a stable `id`, a `title` in one plain sentence ("The agent is (not) allowed to …") and a short `description`. "Not allowed" groups hold only deny rules, "allowed" groups only allow rules. Use one rule per line and `Shell(...)` for Bash and PowerShell. A `note` is optional and adds detail for one rule; Claude sees the group title and the note when a rule blocks.
 2. Raise `version` in the file, so existing installs are offered the update.
 3. Add a case to `test/rules.test.ts`: what the rule must block, and similar commands it must not block.
 
 ### Adding a token reduction strategy
 
 1. Add it to `src/services/reduction/strategies.ts` with a clear `title` and `description`. Both appear on the dashboard's Token savings page.
-2. Start new strategies that drop information in `measure` mode (`defaultState`).
+2. Start new strategies that drop information switched `off` (`defaultState`), so users opt in.
 3. Test it with **real output** from the tool, and put larger samples in `test/fixtures/`. The test must show that failures, errors and warnings survive. That matters more than how much gets removed.
 4. Never rewrite `Read` results in content. Claude needs the exact file text to edit files.
 
 ## Branches and releases
 
 - Work on a `feature/*` branch and open a pull request into `develop`. Dependabot also opens its pull requests into `develop`.
-- Every merge into `develop` publishes a pre-release like `0.1.1-dev.42` under the npm `dev` tag. Try it with `npx apichap-ai-coding-gateway@dev`.
+- Every merge into `develop` publishes a pre-release under the npm `dev` tag: the version in `package.json` plus the run number, like `0.1.1-dev.42`. Bump the version in `package.json` by hand. Try it with `npx apichap-ai-coding-gateway@dev`.
 - To release, bump `version` in `package.json` on `develop` (and move the `CHANGELOG.md` entries under that version), then open a pull request from `develop` into `main`. The merge publishes that version as `latest`, tags it and creates a GitHub release. A merge without a version bump publishes nothing.
 - Publishing only runs after the full test matrix has passed for that commit (`.github/workflows/release.yml`). It uses the `npm-publish` environment, which only `main` and `develop` may use, so a workflow edited on a feature branch cannot publish.
 

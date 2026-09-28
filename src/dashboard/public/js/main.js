@@ -1,58 +1,43 @@
 // Entry point: navigation, sidebar, live stream, startup.
-import { $, $$, api, guard, managed, state, toast, token, ui } from "./core.js";
+import { $, $$, api, guard, state, toast, token } from "./core.js";
 import { fmtTok, pct } from "./format.js";
 import { loadActivity, renderCalls, renderProjectOptions, upsertCalls } from "./activity.js";
-import { loadStrategies, renderSavingsTotals } from "./savings.js";
-import { loadRequests } from "./approvals.js";
+import { loadStrategies } from "./savings.js";
 import { loadRules } from "./rules.js";
 
 // ---------- navigation ----------
-const PAGES = ["calls", "approvals", "rules", "savings"];
+const PAGES = ["calls", "rules", "savings"];
 function showPage(page) {
   if (!PAGES.includes(page)) page = "calls";
   state.page = page;
   $$("[data-page-section]").forEach((s) => (s.hidden = s.id !== `page-${page}`));
   $$("nav.menu a").forEach((a) => a.classList.toggle("active", a.dataset.page === page));
-  if (page === "approvals") guard(loadRequests)();
   if (page === "rules") guard(loadRules)();
   if (page === "savings") guard(loadStrategies)();
 }
 window.addEventListener("hashchange", () => showPage(location.hash.slice(1)));
 
 // ---------- sidebar / stats ----------
-ui.renderStats = renderStats;
-
 function renderStats() {
   const s = state.stats;
   if (!s) return;
   $$("#modes button").forEach((b) => {
     b.classList.toggle("on", b.dataset.mode === s.mode);
-    b.disabled = managed();
+    b.setAttribute("aria-pressed", String(b.dataset.mode === s.mode));
   });
-  const pc = $("#pending-count");
-  pc.hidden = !s.pendingRequests;
-  pc.textContent = s.pendingRequests;
-  $("#k-pending").textContent = s.pendingRequests;
-  const t = (state.project && state.projectTokens) || s.tokens || {};
-  $("#k-tokens").textContent = fmtTok(t.resultTokens);
-  $("#k-tokens-sub").textContent =
-    `in ${Number(t.calls || 0).toLocaleString()} calls${state.project ? " · this project" : ""} · estimated`;
-  $("#k-saved").textContent = fmtTok(t.savedTokens);
-  $("#k-saved-sub").textContent =
-    `${pct(t.savedTokens, t.resultTokens)}% of tool results` +
-    (t.potentialTokens ? ` · ${fmtTok(t.potentialTokens)} more possible` : "");
-  $("#banner").innerHTML = managed()
-    ? '<div class="banner info">Rules are managed by your organization. You can follow your calls and the status of your approval requests, but not change rules.</div>'
-    : s.mode === "monitor"
-      ? '<div class="banner warn"><b>Monitor mode.</b>&nbsp;Calls are checked and logged, but nothing is blocked. Switch to Enforce when the rules look right.</div>'
-      : s.mode === "off"
-        ? '<div class="banner warn"><b>Checks are off.</b>&nbsp;Tool calls are only logged.</div>'
-        : "";
-  $("#add-form")
-    .querySelectorAll("input,select,button")
-    .forEach((el) => (el.disabled = managed()));
-  $$(".needs-local").forEach((el) => (el.disabled = managed()));
-  if (state.page === "savings") renderSavingsTotals(s.tokens || {});
+  // Optional hint line under the modes. "off" has no button here; it can only be set with the CLI.
+  const hint = $("#mode-hint");
+  if (hint) {
+    const active = $(`#modes button[data-mode="${s.mode}"]`);
+    hint.textContent = active ? active.dataset.hint : "Checks are off (set with the CLI). Pick a mode to turn them on.";
+  }
+  // Two stat cards, for all projects: "saved 11k of 74k", and denied calls.
+  const t = s.tokens || {};
+  const share = pct(t.savedTokens, t.resultTokens);
+  $("#st-denied").textContent = Number(s.deniedCalls || 0).toLocaleString();
+  $("#st-saved").textContent = fmtTok(t.savedTokens);
+  $("#st-of").textContent = `of ${fmtTok(t.resultTokens)} · ${share}%`;
+  $("#st-meter").style.width = `${Math.min(share, 100)}%`;
 }
 
 $$("#modes button").forEach((b) =>
@@ -62,7 +47,7 @@ $$("#modes button").forEach((b) =>
       if (b.dataset.mode === state.stats?.mode) return;
       if (
         b.dataset.mode === "enforce" &&
-        !confirm("Switch to Enforce? Denied and unlisted tool calls will be blocked in every Claude Code session.")
+        !confirm("Switch to Enforce? Denied and unlisted tool calls will be denied in every Claude Code session.")
       )
         return;
       await api("PUT", "/api/mode", { mode: b.dataset.mode });
@@ -76,12 +61,9 @@ $$("#modes button").forEach((b) =>
 // ---------- live stream ----------
 function connect() {
   const es = new EventSource(`/api/stream?token=${encodeURIComponent(token)}`);
-  const setConn = (cls, text) => {
-    $("#live-dot").className = `dot ${cls}`;
-    $("#live-text").textContent = text;
-  };
-  es.addEventListener("open", () => setConn("live", "Live"));
-  es.addEventListener("error", () => setConn("down", "Reconnecting…"));
+  // The indicator only appears while the stream is down.
+  es.addEventListener("open", () => ($("#conn").hidden = true));
+  es.addEventListener("error", () => ($("#conn").hidden = false));
   es.addEventListener("calls", (e) => {
     const list = JSON.parse(e.data);
     if (state.paused) {
@@ -90,11 +72,8 @@ function connect() {
     } else upsertCalls(list, true);
   });
   es.addEventListener("stats", (e) => {
-    const prev = state.stats;
     state.stats = JSON.parse(e.data);
     renderStats();
-    if (prev && state.page === "approvals" && prev.pendingRequests !== state.stats.pendingRequests) guard(loadRequests)();
-    if (prev && prev.policySource !== state.stats.policySource) showPage(state.page);
   });
 }
 

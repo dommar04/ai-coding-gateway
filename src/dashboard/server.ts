@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import {
+  countDeniedCalls,
   getCall,
   getPromptGroup,
   lastCallId,
@@ -18,7 +19,7 @@ import {
   type ToolCallRow,
 } from "../storage/tables/tool-calls";
 import { countEnabledRules, getRule } from "../storage/tables/tool-rules";
-import { summarizeInput } from "../helpers/summary";
+import { inputDescription, summarizeInput } from "../helpers/summary";
 import { promptInfo } from "../integrations/claude/transcript";
 import { listStrategies, setStrategyState } from "../services/reduction/options";
 import type { StrategyState } from "../services/reduction/strategies";
@@ -28,20 +29,26 @@ import {
   exportRules,
   formatRuleFile,
   importRules,
+  previewDefaults,
+  previewImport,
   resetToDefaults,
 } from "../services/tool-security/rule-files/rule-sets";
 import type { Verdict } from "../services/tool-security/matching/engine";
-import { parseJsonList, parseJsonOrText } from "../helpers/json";
-import { MODES, PolicyLockedError, getMode, getPolicySource, setMode, type Mode } from "../services/settings";
+import { parseJsonOrText } from "../helpers/json";
+import { MODES, getMode, setMode, type Mode } from "../services/settings";
+import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import {
-  approveRequest,
-  countPendingRequests,
-  getRequest,
-  listRequests,
-  rejectRequest,
-  type RequestRow,
-} from "../services/tool-security/requests";
-import { addRule, evaluateCall, listRules, removeRule, setRuleEnabled } from "../services/tool-security/rules";
+  addGroup,
+  addRule,
+  evaluateCall,
+  listGroups,
+  listRules,
+  moveRule,
+  removeGroup,
+  removeRule,
+  setRuleEnabled,
+  updateGroup,
+} from "../services/tool-security/rules";
 
 // Local-only dashboard. It can change policy, so every API call needs the per-run token
 // (blocks other websites from calling it) and a localhost Host header (blocks DNS rebinding).
@@ -76,7 +83,7 @@ class HttpError extends Error {
   }
 }
 
-/** Why a call got its decision: the matching rule (deny, or the allow rule that covered it) or the approval request. */
+/** Why a call got its decision: the matching rule (deny, or the allow rule that covered it), or no allow rule. */
 function decisionReason(row: ToolCallRow) {
   if (row.rule_id !== null) {
     const rule = getRule(row.rule_id);
@@ -86,13 +93,17 @@ function decisionReason(row: ToolCallRow) {
       effect: rule?.effect ?? null,
       rule: rule?.rule ?? null,
       note: rule?.note ?? null,
+      group: rule?.group_title ?? null,
       deleted: !rule,
     };
   }
-  if (row.request_id !== null) {
-    return { kind: "unlisted", requestId: row.request_id, requestStatus: getRequest(row.request_id)?.status ?? null };
-  }
+  if (row.decision === "denied" || row.decision === "would_deny") return { kind: "unlisted" };
   return null;
+}
+
+/** The logged call as the rules see it, for allowing it from the activity. */
+function callRef(row: ToolCallRow): CallRef {
+  return { toolName: row.tool_name, toolInput: parseJsonOrText(row.tool_input), cwd: row.project ?? process.cwd() };
 }
 
 function toCall(row: ToolCallRow, full = false) {
@@ -107,9 +118,9 @@ function toCall(row: ToolCallRow, full = false) {
     project: row.project,
     tool: row.tool_name,
     summary: summarizeInput(row.tool_input),
+    description: inputDescription(row.tool_input),
     decision: row.decision,
     ruleId: row.rule_id,
-    requestId: row.request_id,
     reason: decisionReason(row),
     startedAt: row.started_at,
     completedAt: row.completed_at,
@@ -120,7 +131,6 @@ function toCall(row: ToolCallRow, full = false) {
       input: row.input_tokens,
       result: row.result_tokens,
       resultAfter: row.result_tokens_after,
-      potential: row.saved_potential,
     },
     reduction: parseJsonOrText(row.reduction),
     inputRewrite: parseJsonOrText(row.input_rewrite),
@@ -143,35 +153,15 @@ function toPrompt(row: PromptGroupRow) {
     callCount: row.calls,
     denied: row.denied,
     wouldDeny: row.would_deny,
-    tokens: { input: row.input_tokens, result: row.result_tokens, saved: row.saved_tokens, potential: row.potential_tokens },
+    tokens: { input: row.input_tokens, result: row.result_tokens, saved: row.saved_tokens },
     usage: info?.usage ?? null,
     calls: listCallsForPrompt(row.prompt_id).map((c) => toCall(c)),
   };
 }
 
-function toRequest(row: RequestRow) {
-  return {
-    id: row.id,
-    tool: row.tool_name,
-    subject: row.subject,
-    uncovered: parseJsonList(row.uncovered),
-    suggestedExact: parseJsonList(row.suggested_exact),
-    suggestedBroad: parseJsonList(row.suggested_broad),
-    project: row.project,
-    sessionId: row.session_id,
-    status: row.status,
-    hitCount: row.hit_count,
-    firstSeen: row.first_seen,
-    lastSeen: row.last_seen,
-    decidedBy: row.decided_by,
-    decidedAt: row.decided_at,
-    ruleIds: parseJsonList(row.rule_ids).map(Number),
-  };
-}
-
 function toVerdict(v: Verdict) {
-  const ref = (r: { id: number; rule: string; note: string | null } | null) =>
-    r ? { id: r.id, rule: r.rule, note: r.note } : null;
+  const ref = (r: { id: number; rule: string; note: string | null; group_title?: string | null } | null) =>
+    r ? { id: r.id, rule: r.rule, note: r.note, group: r.group_title ?? null } : null;
   return {
     decision: v.decision,
     reason: v.decision === "deny" ? v.reason : null,
@@ -184,9 +174,8 @@ function toVerdict(v: Verdict) {
 function stats() {
   return {
     mode: getMode(),
-    policySource: getPolicySource(),
-    pendingRequests: countPendingRequests(),
     activeRules: countEnabledRules(),
+    deniedCalls: countDeniedCalls(),
     tokens: tokenTotals(),
   };
 }
@@ -258,9 +247,10 @@ function staticFile(pathname: string): { type: string; body: Buffer } | null {
 
 export function openBrowser(url: string): void {
   try {
+    // Not explorer.exe: it opens the Documents folder instead of the browser for URLs with a query string.
     const [cmd, args] =
       process.platform === "win32"
-        ? ["explorer.exe", [url]]
+        ? ["rundll32.exe", ["url.dll,FileProtocolHandler", url]]
         : process.platform === "darwin"
           ? ["open", [url]]
           : ["xdg-open", [url]];
@@ -354,7 +344,7 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
     }
     if (method === "PUT" && (m = path.match(/^\/api\/reduction\/([\w-]+)$/))) {
       const body = await readBody(req);
-      if (typeof body.state !== "string") throw new HttpError(400, 'Expected { state: "on" | "measure" | "off" }');
+      if (typeof body.state !== "string") throw new HttpError(400, 'Expected { state: "on" | "off" }');
       setStrategyState(m[1], body.state as StrategyState);
       return sendJson(res, 200, { id: m[1], state: body.state });
     }
@@ -372,6 +362,27 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       if (!row) throw new HttpError(404, "Tool call not found");
       return sendJson(res, 200, toCall(row, true));
     }
+    if ((m = path.match(/^\/api\/calls\/(\d+)\/allow$/))) {
+      const row = getCall(parseIdParam(m[1]));
+      if (!row) throw new HttpError(404, "Tool call not found");
+      if (method === "GET") return sendJson(res, 200, allowOptions(callRef(row)));
+      if (method === "POST") {
+        const body = await readBody(req);
+        const mode = body.mode ?? "exact";
+        let custom: string[] | undefined;
+        if (mode === "custom") {
+          custom = String(body.rule ?? "")
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (custom.length === 0) throw new HttpError(400, "A custom rule needs at least one line");
+        } else if (mode !== "exact" && mode !== "broad") {
+          throw new HttpError(400, 'mode must be "exact", "broad" or "custom"');
+        }
+        const group = typeof body.groupId === "number" ? body.groupId : null;
+        return sendJson(res, 200, allowCall(callRef(row), { broad: mode === "broad", custom, group }));
+      }
+    }
 
     if (method === "GET" && path === "/api/rules/export") {
       const date = new Date().toISOString().slice(0, 10);
@@ -383,12 +394,17 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       res.end(formatRuleFile(exportRules()));
       return;
     }
+    if (method === "POST" && path === "/api/rules/import/preview") {
+      const body = await readBody(req, IMPORT_MAX_BODY);
+      return sendJson(res, 200, previewImport(body.file));
+    }
     if (method === "POST" && path === "/api/rules/import") {
       const body = await readBody(req, IMPORT_MAX_BODY);
       const mode = body.mode === "merge" ? "merge" : "replace";
       return sendJson(res, 200, importRules(body.file, mode));
     }
     if (method === "GET" && path === "/api/rules/defaults") return sendJson(res, 200, defaultsStatus());
+    if (method === "GET" && path === "/api/rules/defaults/preview") return sendJson(res, 200, previewDefaults());
     if (method === "POST" && path === "/api/rules/reset") {
       const body = await readBody(req);
       return sendJson(res, 200, resetToDefaults(body.mode === "merge" ? "merge" : "replace"));
@@ -402,7 +418,8 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
         throw new HttpError(400, 'Expected { effect: "allow" | "deny", rule: "Tool(pattern)", note? }');
       }
       const note = typeof body.note === "string" && body.note.trim() ? body.note.trim() : null;
-      return sendJson(res, 201, { id: addRule(effect, rule, note, "dashboard") });
+      const groupId = typeof body.groupId === "number" ? body.groupId : null;
+      return sendJson(res, 201, { id: addRule(effect, rule, note, "dashboard", groupId) });
     }
     if (method === "POST" && path === "/api/rules/test") {
       const body = await readBody(req);
@@ -415,8 +432,10 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       const id = parseIdParam(m[1]);
       if (method === "PATCH") {
         const body = await readBody(req);
-        if (typeof body.enabled !== "boolean") throw new HttpError(400, "Expected { enabled: boolean }");
-        if (!setRuleEnabled(id, body.enabled)) throw new HttpError(404, "Rule not found");
+        if (typeof body.enabled !== "boolean" && typeof body.groupId !== "number")
+          throw new HttpError(400, "Expected { enabled: boolean } or { groupId: number }");
+        if (typeof body.groupId === "number" && !moveRule(id, body.groupId)) throw new HttpError(404, "Rule not found");
+        if (typeof body.enabled === "boolean" && !setRuleEnabled(id, body.enabled)) throw new HttpError(404, "Rule not found");
         return sendJson(res, 200, { ok: true });
       }
       if (method === "DELETE") {
@@ -425,31 +444,30 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       }
     }
 
-    if (method === "GET" && path === "/api/requests") {
-      const status = url.searchParams.get("status") ?? "pending";
-      if (!["pending", "approved", "rejected", "all"].includes(status)) throw new HttpError(400, "Invalid status");
-      return sendJson(res, 200, listRequests(status as RequestRow["status"] | "all").map(toRequest));
+    if (method === "GET" && path === "/api/rule-groups") return sendJson(res, 200, listGroups());
+    if (method === "POST" && path === "/api/rule-groups") {
+      const body = await readBody(req);
+      if (typeof body.title !== "string" || !body.title.trim())
+        throw new HttpError(400, 'Expected { title: "...", description? }');
+      const description = typeof body.description === "string" ? body.description : null;
+      return sendJson(res, 201, { id: addGroup(body.title, description, "dashboard") });
     }
-    if (method === "POST" && (m = path.match(/^\/api\/requests\/(\d+)\/(approve|reject)$/))) {
+    if ((m = path.match(/^\/api\/rule-groups\/(\d+)$/))) {
       const id = parseIdParam(m[1]);
-      if (!getRequest(id)) throw new HttpError(404, "Request not found");
-      if (m[2] === "reject") {
-        rejectRequest(id);
+      if (method === "PATCH") {
+        const body = await readBody(req);
+        const patch: { title?: string; description?: string | null; enabled?: boolean } = {};
+        if (typeof body.title === "string") patch.title = body.title;
+        if (typeof body.description === "string" || body.description === null) patch.description = body.description;
+        if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
+        if (!Object.keys(patch).length) throw new HttpError(400, "Expected { title?, description?, enabled? }");
+        if (!updateGroup(id, patch)) throw new HttpError(404, "Rule group not found");
         return sendJson(res, 200, { ok: true });
       }
-      const body = await readBody(req);
-      const mode = body.mode ?? "exact";
-      let custom: string[] | undefined;
-      if (mode === "custom") {
-        custom = String(body.rule ?? "")
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (custom.length === 0) throw new HttpError(400, "Custom approval needs at least one rule");
-      } else if (mode !== "exact" && mode !== "broad") {
-        throw new HttpError(400, 'mode must be "exact", "broad" or "custom"');
+      if (method === "DELETE") {
+        if (!removeGroup(id)) throw new HttpError(404, "Rule group not found");
+        return sendJson(res, 200, { ok: true });
       }
-      return sendJson(res, 200, approveRequest(id, { broad: mode === "broad", custom }));
     }
 
     if (path === "/api/mode") {
@@ -505,7 +523,6 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
         return;
       }
       if (err instanceof HttpError) return sendJson(res, err.status, { error: err.message });
-      if (err instanceof PolicyLockedError) return sendJson(res, 403, { error: err.message });
       if (err instanceof Error) return sendJson(res, 400, { error: err.message });
       sendJson(res, 500, { error: "Internal error" });
     }

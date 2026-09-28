@@ -15,7 +15,7 @@ export const frameworkLogs: OutputStrategy = {
   description:
     "In long output, drops INFO/DEBUG/TRACE log lines from framework loggers (Spring, Hibernate, Hikari, Tomcat, Netty, Kafka, Flyway, Jetty, …), Hibernate SQL echo and the Spring Boot banner. WARN/ERROR and your own packages' logs always stay.",
   group: "Condense noisy output",
-  defaultState: "measure",
+  defaultState: "off",
   applies: isShell,
   apply: (text) => {
     const withoutBanner = text.replace(SPRING_BANNER, "");

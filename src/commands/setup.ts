@@ -16,7 +16,7 @@ export function runInit(args: string[]): void {
   console.log(`  settings: ${result.path}${result.backup ? ` (backup: ${result.backup})` : ""}`);
   if (result.replaced) console.log(`  replaced ${result.replaced} earlier gateway hook(s)`);
   console.log("");
-  console.log("New Claude Code sessions are now tracked. It starts in monitor mode, so nothing is blocked yet.");
+  console.log("New Claude Code sessions are now tracked. It starts in monitor mode, so nothing is denied yet.");
   console.log("Open the dashboard:  npx apichap-ai-coding-gateway dashboard");
 }
 

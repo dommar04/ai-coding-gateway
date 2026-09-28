@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "apichap AI Coding Gateway rule file",
-  "description": "Allow and deny rules for Claude Code tool calls. A matching deny rule always wins; calls no allow rule covers become approval requests.",
+  "description": "Rule groups for Claude Code tool calls. Each group is one policy in plain words (\"The agent is not allowed to delete files\") with the allow and deny rules that implement it. A matching deny rule always wins; calls no allow rule covers are denied too.",
   "type": "object",
   "properties": {
     "$schema": { "type": "string" },
@@ -13,12 +13,48 @@
     },
     "description": { "type": "string" },
     "exportedAt": { "type": "string", "description": "Set by export. Ignored on import." },
-    "allow": { "$ref": "#/$defs/ruleList", "description": "Rules that let tool calls through." },
-    "deny": { "$ref": "#/$defs/ruleList", "description": "Rules that block tool calls. They always win over allow rules." }
+    "groups": {
+      "type": "array",
+      "description": "The rule groups, in the order they are shown.",
+      "items": { "$ref": "#/$defs/group" }
+    },
+    "allow": {
+      "$ref": "#/$defs/ruleList",
+      "description": "Older format without groups: rules that let tool calls through. Imported into one group."
+    },
+    "deny": {
+      "$ref": "#/$defs/ruleList",
+      "description": "Older format without groups: rules that block tool calls. Imported into one group."
+    }
   },
-  "anyOf": [{ "required": ["allow"] }, { "required": ["deny"] }],
+  "anyOf": [{ "required": ["groups"] }, { "required": ["allow"] }, { "required": ["deny"] }],
   "additionalProperties": false,
   "$defs": {
+    "group": {
+      "type": "object",
+      "required": ["id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Stable key of the group, e.g. no-deleting-files. Merging a file adds rules to the group with the same id."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The policy in one plain sentence, e.g. \"The agent is not allowed to delete files\". Shown on the Rules page and to Claude when a rule of this group blocks a call."
+        },
+        "description": { "type": "string", "description": "A sentence or two on why, and what is included." },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Set to false to keep the group but switch all its rules off."
+        },
+        "allow": { "$ref": "#/$defs/ruleList", "description": "Rules that let tool calls through." },
+        "deny": { "$ref": "#/$defs/ruleList", "description": "Rules that block tool calls. They always win over allow rules." }
+      }
+    },
     "ruleList": {
       "type": "array",
       "items": { "$ref": "#/$defs/rule" }
@@ -31,11 +67,12 @@
         "rule": {
           "type": "string",
           "pattern": "^\\s*[^()\\s]+(\\([\\s\\S]*\\))?\\s*$",
-          "description": "Tool or Tool(pattern), e.g. Read, Shell(git *), FileEdit({cwd}/**), mcp__github__*. Wildcards: * anything, ? one character; in paths * stays in a folder and ** crosses folders. Groups: Shell = Bash + PowerShell, FileEdit = Edit, Write, MultiEdit, NotebookEdit, File = Read + FileEdit.",
+          "description": "Tool or Tool(pattern), e.g. Read, Shell(git *), FileEdit({cwd}/**), mcp__github__*. Wildcards: * anything, ? one character; in paths * stays in a folder, ** crosses folders, and a trailing /** also matches the folder itself. Tool groups: Shell = Bash + PowerShell, FileRead = Read, Grep, Glob, FileEdit = Edit, Write, MultiEdit, NotebookEdit, File = FileRead + FileEdit.",
           "examples": [
             "Read",
             "Shell(git *)",
             "Shell(git push *--force*)",
+            "FileRead({cwd}/**)",
             "FileEdit({cwd}/**)",
             "File(**/.env*)",
             "mcp__github__*"
@@ -43,7 +80,7 @@
         },
         "note": {
           "type": ["string", "null"],
-          "description": "Why the rule exists. For deny rules, this is what Claude and the user see when the rule blocks a call."
+          "description": "Optional detail for this one rule. When a deny rule blocks a call, Claude sees the group title and this note."
         },
         "enabled": { "type": "boolean", "default": true, "description": "Set to false to keep the rule but switch it off." }
       }

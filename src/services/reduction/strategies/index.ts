@@ -1,4 +1,4 @@
-// Output reduction strategies, one per file. Each can be set to on / measure / off on the
+// Output reduction strategies, one per file. Each can be switched on or off on the
 // dashboard's Token savings page. They run in the order listed here.
 
 import { ansi } from "./ansi";

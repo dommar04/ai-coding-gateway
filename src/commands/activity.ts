@@ -21,7 +21,7 @@ export function runList(limit: number): void {
       row.decision === "denied"
         ? "⛔ denied"
         : row.decision === "would_deny"
-          ? `${row.completed_at ? "✓ completed" : "… pending"}, would be denied`
+          ? `${row.completed_at ? "✓ completed" : "… pending"}, denied`
           : row.completed_at
             ? "✓ completed"
             : "… pending";
