@@ -8,7 +8,6 @@ export type GatewayEvent =
       toolName: string;
       decision: string;
       ruleId: number | null;
-      requestId: number | null;
     }
   | { type: "post"; toolUseId: string; sessionId: string; toolName: string };
 

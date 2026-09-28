@@ -34,6 +34,27 @@
         <path d="M16 8 2 22M17.5 15H9" />
       </symbol>
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+      <symbol id="i-ban" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m5.7 5.7 12.6 12.6" />
+      </symbol>
+      <symbol id="i-check-circle" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m8 12 3 3 5-6" />
+      </symbol>
+      <symbol id="i-help-circle" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3M12 17h.01" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24">
+        <path d="M12 15V3M7 8l5-5 5 5" />
+        <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 24 24">
+        <path d="M12 3v12M7 10l5 5 5-5" />
+        <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+      </symbol>
     </svg>
 
     <div class="app">
@@ -49,10 +70,6 @@
           <a href="#calls" data-page="calls"
             ><svg class="icon"><use href="#i-activity" /></svg><span class="lbl">Activity</span></a
           >
-          <a href="#approvals" data-page="approvals"
-            ><svg class="icon"><use href="#i-inbox" /></svg><span class="lbl">Approvals</span
-            ><span class="count" id="pending-count" hidden>0</span></a
-          >
           <a href="#rules" data-page="rules"
             ><svg class="icon"><use href="#i-shield" /></svg><span class="lbl">Rules</span></a
           >
@@ -61,21 +78,38 @@
           >
         </nav>
         <div class="side-foot">
-          <div class="side-card">
-            <div class="label">Enforcement</div>
-            <div class="modes" id="modes">
-              <button data-mode="enforce" title="Block denied and unlisted calls">
-                <span class="pip"></span>Enforce<small>blocks</small>
+          <div class="side-stats">
+            <div
+              class="side-stat stat-saved"
+              title="Tool result tokens saved by reduction, of all tool result tokens (estimated)"
+            >
+              <div class="label">Tokens Saved</div>
+              <div class="num" id="st-saved">0</div>
+              <div class="sub" id="st-of"></div>
+              <div class="meter"><span id="st-meter"></span></div>
+            </div>
+            <div class="side-stat stat-denied" title="Calls the rules denied (blocked, or only logged in monitor mode)">
+              <div class="label">Call Denied</div>
+              <div class="num" id="st-denied">0</div>
+              <div class="sub">tool calls</div>
+            </div>
+          </div>
+          <div class="side-mode">
+            <div class="label">Mode</div>
+            <div class="modes" id="modes" role="group" aria-label="Enforcement mode">
+              <button data-mode="enforce" title="Block denied and unlisted calls" data-hint="Denied Calls are Blocked.">
+                <span class="pip"></span>Enforce
               </button>
-              <button data-mode="monitor" title="Log what would be blocked, block nothing">
-                <span class="pip"></span>Monitor<small>logs only</small>
-              </button>
-              <button data-mode="off" title="No rule checks, only logging">
-                <span class="pip"></span>Off<small>no checks</small>
+              <button
+                data-mode="monitor"
+                title="Log what denied, block nothing"
+                data-hint="Denied Calls are only logged not blocked"
+              >
+                <span class="pip"></span>Monitor
               </button>
             </div>
           </div>
-          <div class="conn"><span class="dot" id="live-dot"></span><span id="live-text">Connecting…</span></div>
+          <div class="conn" id="conn" hidden><span class="dot down"></span><span>Reconnecting…</span></div>
         </div>
       </aside>
 
@@ -88,34 +122,6 @@
             <div>
               <h1>Activity</h1>
               <p>Every tool call from Claude Code sessions on this machine, grouped by the prompt that triggered it.</p>
-            </div>
-            <div class="actions">
-              <div class="seg" id="view-toggle">
-                <button data-view="grouped" class="on">By prompt</button>
-                <button data-view="flat">All calls</button>
-              </div>
-            </div>
-          </div>
-          <div class="kpis">
-            <div class="kpi">
-              <div class="k">Tool result tokens</div>
-              <div class="v" id="k-tokens">0</div>
-              <div class="kk" id="k-tokens-sub"></div>
-            </div>
-            <div class="kpi">
-              <div class="k">Saved by reduction</div>
-              <div class="v brand" id="k-saved">0</div>
-              <div class="kk" id="k-saved-sub"></div>
-            </div>
-            <div class="kpi">
-              <div class="k">Blocked / would block</div>
-              <div class="v bad" id="k-blocked">0</div>
-              <div class="kk">in the calls shown</div>
-            </div>
-            <div class="kpi">
-              <div class="k">Pending approvals</div>
-              <div class="v warn" id="k-pending">0</div>
-              <div class="kk"><a href="#approvals">review</a></div>
             </div>
           </div>
           <div class="card">
@@ -134,29 +140,13 @@
                 <option value="">All decisions</option>
                 <option value="allowed">Allowed</option>
                 <option value="denied">Denied</option>
-                <option value="would_deny">Would deny</option>
+                <option value="would_deny">Denied</option>
               </select>
               <button class="btn" id="pause">
                 <svg class="icon"><use href="#i-pause" /></svg><span>Pause</span>
               </button>
             </div>
             <div id="grouped-view" class="groups"></div>
-            <div class="table-scroll" id="flat-view" hidden>
-              <table id="calls" class="calls">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Tool</th>
-                    <th>Call</th>
-                    <th>Project</th>
-                    <th>Tokens</th>
-                    <th>Decision</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
             <div class="empty" id="calls-empty" hidden>
               <svg class="icon"><use href="#i-activity" /></svg>
               <div>No tool calls yet. Use Claude Code and they appear here live.</div>
@@ -171,31 +161,9 @@
             <div>
               <h1>Token savings</h1>
               <p>
-                Each option shortens tool results before Claude sees them. <b>On</b> changes what Claude gets, <b>Measure</b> only
-                calculates what it would save, <b>Off</b> does nothing.
+                Each option shortens tool results before Claude sees them. <b>On</b> changes what Claude gets, <b>Off</b> leaves
+                it as it is.
               </p>
-            </div>
-          </div>
-          <div class="kpis">
-            <div class="kpi">
-              <div class="k">Tool result tokens</div>
-              <div class="v" id="s-tokens">0</div>
-              <div class="kk" id="s-calls"></div>
-            </div>
-            <div class="kpi">
-              <div class="k">Saved</div>
-              <div class="v brand" id="s-saved">0</div>
-              <div class="kk" id="s-saved-sub"></div>
-            </div>
-            <div class="kpi">
-              <div class="k">Would also save (Measure)</div>
-              <div class="v warn" id="s-potential">0</div>
-              <div class="kk">switch those options to On</div>
-            </div>
-            <div class="kpi">
-              <div class="k">Tokens Claude wrote for calls</div>
-              <div class="v" id="s-input">0</div>
-              <div class="kk">tool inputs, not reducible here</div>
             </div>
           </div>
           <div id="strategies"></div>
@@ -205,104 +173,66 @@
           </p>
         </section>
 
-        <!-- ---------- Approvals ---------- -->
-        <section id="page-approvals" data-page-section hidden>
-          <div class="page-head">
-            <div>
-              <h1>Approvals</h1>
-              <p>Tool calls that were not on the allowlist. Approving one adds an allow rule for everyone using this gateway.</p>
-            </div>
-            <div class="actions">
-              <div class="seg" id="req-filter">
-                <button data-status="pending" class="on">Pending</button>
-                <button data-status="all">All</button>
-              </div>
-            </div>
-          </div>
-          <div class="card" id="requests"></div>
-        </section>
-
         <!-- ---------- Rules ---------- -->
         <section id="page-rules" data-page-section hidden>
           <div class="page-head">
             <div>
               <h1>Rules</h1>
-              <p>Deny rules always win. Everything not covered by an allow rule is blocked and becomes an approval request.</p>
+              <p>What the agent may and may not do, one policy per group. Open a group to see the rules behind it.</p>
             </div>
             <div class="actions">
-              <button class="btn" id="rules-export" title="Download all rules as a JSON rule file">Export</button>
-              <button class="btn needs-local" id="rules-import" title="Replace all rules with a JSON rule file">Import…</button>
-              <button class="btn needs-local" id="rules-reset" title="Replace all rules with the default rules">
-                Reset to defaults
+              <button class="btn" id="rules-test" title="See which rule and policy decide a tool call">
+                <svg class="icon"><use href="#i-search" /></svg>Test a call…
               </button>
-              <input type="file" id="rules-file" accept=".json,application/json" hidden />
+              <button class="btn" id="rules-export" title="Download all rule groups as a JSON rule file">
+                <svg class="icon"><use href="#i-download" /></svg>Export
+              </button>
+              <button class="btn" id="rules-import" title="Add or replace rules from a JSON rule file">
+                <svg class="icon"><use href="#i-upload" /></svg>Import…
+              </button>
+              <button class="btn" id="rules-reset" title="Go back to the default rules">Reset to defaults…</button>
             </div>
           </div>
           <div id="defaults-banner"></div>
-          <div class="grid2">
-            <div class="card">
-              <div class="card-head">
-                <h2>Test a call</h2>
-                <span class="sub">See which rule decides it</span>
-              </div>
-              <div class="form">
-                <input type="text" id="test-input" class="mono" placeholder="Bash(git status &amp;&amp; rm -rf x)" />
-                <div class="verdict" id="test-result">
-                  <span class="muted"
-                    >Type a call, e.g. <code>Bash(npm run build)</code> or <code>Edit(C:/work/app/src/a.ts)</code>.</span
-                  >
-                </div>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-head"><h2>Add rule</h2></div>
-              <form class="form" id="add-form">
-                <div class="row">
-                  <select id="add-effect">
-                    <option value="allow">allow</option>
-                    <option value="deny">deny</option>
-                  </select>
-                  <input type="text" id="add-rule" class="mono" placeholder="Bash(docker compose *)" required />
-                </div>
-                <div class="row">
-                  <input type="text" id="add-note" placeholder="Note, shown to Claude when a deny rule blocks" />
-                  <button class="btn primary" type="submit">Add rule</button>
-                </div>
-              </form>
-              <div class="help">
-                <code>Tool</code> or <code>Tool(pattern)</code> · <code>*</code> anything · <code>?</code> one character · in
-                paths <code>*</code> stays in a folder, <code>**</code> crosses folders · <code>{cwd}</code> project folder ·
-                <code>{home}</code> home folder
-              </div>
-            </div>
-          </div>
-          <div class="card">
+          <div class="policy-summary" id="policy-summary"></div>
+
+          <div class="card rules-card">
             <div class="card-head">
-              <h2>All rules</h2>
+              <h2>Rule groups</h2>
               <span class="sub" id="rules-count"></span><span class="grow"></span>
               <div class="seg" id="rules-effect">
-                <button data-effect="" class="on">All</button><button data-effect="deny">Deny</button
-                ><button data-effect="allow">Allow</button>
+                <button data-effect="" class="on">All</button><button data-effect="deny">Not allowed</button
+                ><button data-effect="allow">Allowed</button>
               </div>
               <label class="search search-narrow"
                 ><svg class="icon"><use href="#i-search" /></svg><input type="text" id="rules-filter" placeholder="Filter rules…"
               /></label>
+              <button class="btn sm primary" id="group-new-toggle">
+                <svg class="icon"><use href="#i-plus" /></svg>New group
+              </button>
             </div>
-            <div class="table-scroll">
-              <table id="rules">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Effect</th>
-                    <th>Rule</th>
-                    <th>Note</th>
-                    <th>Source</th>
-                    <th>On</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <form class="form group-form" id="group-new" hidden>
+              <input
+                type="text"
+                id="group-new-title"
+                placeholder="The agent is not allowed to use Docker"
+                aria-label="Group title"
+                required
+              />
+              <input type="text" id="group-new-desc" placeholder="Why, and what it covers (optional)" aria-label="Description" />
+              <div class="row">
+                <span class="help-inline">Write the title as one plain sentence. You add the rules in the next step.</span>
+                <span class="grow"></span>
+                <button class="btn" type="button" id="group-new-cancel">Cancel</button>
+                <button class="btn primary" type="submit">Create group</button>
+              </div>
+            </form>
+            <div id="rule-groups"></div>
+            <div class="help help-foot">
+              Rules: <code>Tool</code> or <code>Tool(pattern)</code> · <code>*</code> anything · <code>?</code> one character · in
+              paths <code>*</code> stays in a folder, <code>**</code> crosses folders · <code>{cwd}</code> project folder ·
+              <code>{home}</code> home folder · <code>{tmp}</code> temp folder · tool groups <code>Shell</code>,
+              <code>FileRead</code>, <code>FileEdit</code>, <code>File</code>
             </div>
           </div>
         </section>
@@ -310,6 +240,15 @@
     </div>
 
     <aside class="drawer" id="detail" aria-hidden="true">
+      <div
+        class="drawer-resize"
+        id="detail-resize"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Drag to resize the details, double-click to reset"
+        title="Drag to resize, double-click to reset"
+        tabindex="0"
+      ></div>
       <div class="drawer-head">
         <strong id="detail-title">Tool call</strong><span class="grow"></span
         ><button class="btn sm" id="detail-close">
@@ -318,6 +257,78 @@
       </div>
       <div class="drawer-body" id="detail-body"></div>
     </aside>
+    <dialog class="modal" id="import-dialog" aria-labelledby="import-title">
+      <div class="modal-head">
+        <strong id="import-title">Import rules</strong><span class="grow"></span
+        ><button class="btn sm" type="button" data-close>
+          <svg class="icon"><use href="#i-x" /></svg>Close
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="drop" id="import-drop">
+          <svg class="icon"><use href="#i-upload" /></svg>
+          <span><b>Drop a rule file here</b> or <u>choose a file</u></span>
+          <span class="muted small">A JSON file exported from a gateway, or written by hand.</span>
+          <input type="file" id="rules-file" accept=".json,application/json" hidden />
+        </label>
+        <div id="import-preview"></div>
+        <fieldset class="import-modes" id="import-modes" hidden>
+          <legend>How to import</legend>
+          <label class="import-mode"
+            ><input type="radio" name="import-mode" value="merge" checked />
+            <span
+              ><b id="import-merge-label">Add to my rules</b
+              ><span class="muted">Your groups and rules stay. New groups are added, and new rules join their group.</span></span
+            ></label
+          >
+          <label class="import-mode"
+            ><input type="radio" name="import-mode" value="replace" />
+            <span
+              ><b id="import-replace-label">Replace all my rules</b
+              ><span class="muted">Deletes every current group and rule, including ones you added from the activity.</span></span
+            ></label
+          >
+        </fieldset>
+      </div>
+      <div class="modal-foot">
+        <span class="import-summary" id="import-summary"></span><span class="grow"></span>
+        <button class="btn" type="button" data-close>Cancel</button>
+        <button class="btn primary" type="button" id="import-apply" disabled>Import</button>
+      </div>
+    </dialog>
+    <dialog class="modal" id="test-dialog" aria-labelledby="test-title">
+      <div class="modal-head">
+        <strong id="test-title">Test a call</strong><span class="muted small">See which rule and policy decide it</span
+        ><span class="grow"></span
+        ><button class="btn sm" type="button" data-close>
+          <svg class="icon"><use href="#i-x" /></svg>Close
+        </button>
+      </div>
+      <div class="modal-body">
+        <input
+          type="text"
+          id="test-input"
+          class="mono"
+          placeholder="Bash(git status &amp;&amp; rm -rf x)"
+          aria-label="Tool call to test"
+        />
+        <div class="verdict" id="test-result">
+          <span class="muted"
+            >Type a call, e.g. <code>Bash(npm run build)</code> or <code>Edit(C:/work/app/src/a.ts)</code>.</span
+          >
+        </div>
+      </div>
+    </dialog>
+    <dialog class="modal" id="allow-dialog" aria-labelledby="allow-title">
+      <div class="modal-head">
+        <strong id="allow-title">Allow this call</strong><span class="grow"></span
+        ><button class="btn sm" type="button" data-close>
+          <svg class="icon"><use href="#i-x" /></svg>Close
+        </button>
+      </div>
+      <div class="modal-body" id="allow-body"></div>
+    </dialog>
+
     <div id="toast"></div>
 
     <script type="module" src="/js/main.js"></script>

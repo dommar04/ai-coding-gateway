@@ -16,7 +16,6 @@ export interface ToolCallRow {
   tool_input: string | null;
   decision: "allowed" | "denied" | "would_deny" | "observed";
   rule_id: number | null;
-  request_id: number | null;
   input_rewrite: string | null;
   input_tokens: number | null;
   started_at: string | null;
@@ -26,7 +25,6 @@ export interface ToolCallRow {
   reduced_result: string | null;
   result_tokens: number | null;
   result_tokens_after: number | null;
-  saved_potential: number | null;
   reduction: string | null;
 }
 
@@ -44,7 +42,6 @@ interface CallIdentity {
 export interface CallStart extends CallIdentity {
   decision: "allowed" | "denied" | "would_deny";
   ruleId?: number | null;
-  requestId?: number | null;
   inputTokens?: number | null;
   /** Input strategies that changed the call: { applied, notes, original }. */
   inputRewrite?: unknown;
@@ -56,8 +53,7 @@ export interface CallEnd extends CallIdentity {
   inputTokens?: number | null;
   resultTokens?: number | null;
   resultTokensAfter?: number | null;
-  savedPotential?: number | null;
-  /** Per-strategy breakdown: [{ id, state, saved }]. */
+  /** Per-strategy breakdown: [{ id, saved }]. */
   reduction?: unknown;
   /** What the agent actually received, when a strategy changed the result. */
   reducedResult?: unknown;
@@ -68,8 +64,8 @@ const json = (value: unknown) => (value === undefined ? null : safeStringify(val
 export function insertCall(c: CallStart): void {
   sql(
     `INSERT INTO tool_calls (tool_use_id, session_id, agent_id, prompt_id, transcript_path, project, tool_name, tool_input,
-                             decision, rule_id, request_id, input_rewrite, input_tokens, started_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             decision, rule_id, input_rewrite, input_tokens, started_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     c.toolUseId,
     c.sessionId,
@@ -81,7 +77,6 @@ export function insertCall(c: CallStart): void {
     safeStringify(c.toolInput),
     c.decision,
     c.ruleId ?? null,
-    c.requestId ?? null,
     json(c.inputRewrite),
     c.inputTokens ?? null,
     new Date().toISOString()
@@ -94,7 +89,7 @@ export function completeCall(c: CallEnd): void {
   const updated = sql(
     `UPDATE tool_calls
         SET tool_result = ?, completed_at = ?, duration_ms = ?, result_tokens = ?, result_tokens_after = ?,
-            saved_potential = ?, reduction = ?, reduced_result = ?,
+            reduction = ?, reduced_result = ?,
             input_tokens = COALESCE(input_tokens, ?), prompt_id = COALESCE(prompt_id, ?),
             transcript_path = COALESCE(transcript_path, ?), agent_id = COALESCE(agent_id, ?)
       WHERE tool_use_id = ? AND completed_at IS NULL`
@@ -104,7 +99,6 @@ export function completeCall(c: CallEnd): void {
     c.durationMs ?? null,
     c.resultTokens ?? null,
     c.resultTokensAfter ?? null,
-    c.savedPotential ?? null,
     json(c.reduction),
     json(c.reducedResult),
     c.inputTokens ?? null,
@@ -117,8 +111,8 @@ export function completeCall(c: CallEnd): void {
   sql(
     `INSERT INTO tool_calls (tool_use_id, session_id, agent_id, prompt_id, transcript_path, project, tool_name, tool_input,
                              decision, input_tokens, completed_at, duration_ms, tool_result, reduced_result, result_tokens,
-                             result_tokens_after, saved_potential, reduction)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'observed', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             result_tokens_after, reduction)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'observed', ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     c.toolUseId,
     c.sessionId,
@@ -135,7 +129,6 @@ export function completeCall(c: CallEnd): void {
     json(c.reducedResult),
     c.resultTokens ?? null,
     c.resultTokensAfter ?? null,
-    c.savedPotential ?? null,
     json(c.reduction)
   );
 }
@@ -216,7 +209,6 @@ export interface PromptGroupRow {
   input_tokens: number;
   result_tokens: number;
   saved_tokens: number;
-  potential_tokens: number;
 }
 
 const PROMPT_GROUP = `
@@ -224,8 +216,7 @@ const PROMPT_GROUP = `
          MIN(COALESCE(started_at, completed_at)) AS first_at, MAX(COALESCE(completed_at, started_at)) AS last_at,
          COUNT(*) AS calls, SUM(decision = 'denied') AS denied, SUM(decision = 'would_deny') AS would_deny,
          COALESCE(SUM(input_tokens), 0) AS input_tokens, COALESCE(SUM(result_tokens), 0) AS result_tokens,
-         COALESCE(SUM(result_tokens - result_tokens_after), 0) AS saved_tokens,
-         COALESCE(SUM(saved_potential), 0) AS potential_tokens
+         COALESCE(SUM(result_tokens - result_tokens_after), 0) AS saved_tokens
     FROM tool_calls`;
 
 export function listPromptGroups(limit: number, project?: string): PromptGroupRow[] {
@@ -250,14 +241,18 @@ export interface TokenTotals {
   inputTokens: number;
   resultTokens: number;
   savedTokens: number;
-  potentialTokens: number;
 }
 
 const TOKEN_TOTALS = `
   SELECT COUNT(*) AS calls, COALESCE(SUM(input_tokens), 0) AS inputTokens, COALESCE(SUM(result_tokens), 0) AS resultTokens,
-         COALESCE(SUM(result_tokens - result_tokens_after), 0) AS savedTokens, COALESCE(SUM(saved_potential), 0) AS potentialTokens
+         COALESCE(SUM(result_tokens - result_tokens_after), 0) AS savedTokens
     FROM tool_calls WHERE result_tokens IS NOT NULL`;
 
 export function tokenTotals(project?: string): TokenTotals {
   return (project ? sql(`${TOKEN_TOTALS} AND project = ?`).get(project) : sql(TOKEN_TOTALS).get()) as unknown as TokenTotals;
+}
+
+/** Calls the rules denied, blocked (enforce) or only logged (monitor). */
+export function countDeniedCalls(): number {
+  return (sql(`SELECT COUNT(*) AS n FROM tool_calls WHERE decision IN ('denied', 'would_deny')`).get() as { n: number }).n;
 }

@@ -16,7 +16,6 @@ const ctx = (over: Partial<OutputContext> = {}): OutputContext => ({
   toolInput: {},
   field: "stdout",
   toolUseId: "toolu_test",
-  dryRun: false,
   spillDir,
   ...over,
 });
@@ -116,17 +115,15 @@ test("paging keeps head and tail and spills the full output", () => {
   assert.ok(r.includes(file));
   assert.equal(readFileSync(file, "utf8"), text);
 
-  // Measure mode (dry run) computes the same text but writes nothing.
-  const dry = run("paging", text, { toolUseId: "toolu_page2", dryRun: true });
-  assert.ok(dry.length < text.length);
+  // Short output is left alone and spills nothing.
+  assert.equal(run("paging", "small output", { toolUseId: "toolu_page2" }), "small output");
   assert.ok(!existsSync(join(spillDir, "toolu_page2-stdout.txt")));
-  assert.equal(run("paging", "small output"), "small output");
 });
 
-test("pipeline: only 'on' changes the result, 'measure' reports potential savings", () => {
+test("pipeline: only options that are 'on' change the result", () => {
   const stdout = "\x1b[31m" + Array.from({ length: PAGING.maxLines + 100 }, (_, i) => `row ${i}`).join("\n");
   const states = allOn();
-  states.set("paging", "measure");
+  states.set("paging", "off");
   const r = reduceResult({
     toolName: "Bash",
     toolInput: { command: "x" },
@@ -138,12 +135,11 @@ test("pipeline: only 'on' changes the result, 'measure' reports potential saving
   const response = r.response as { stdout: string; interrupted: boolean };
   assert.equal(response.interrupted, false); // shape preserved
   assert.ok(!response.stdout.includes("\x1b"));
-  assert.ok(response.stdout.includes("row 450")); // paging only measured
-  assert.ok(r.savedPotential > 0);
-  assert.deepEqual(r.breakdown.map((b) => [b.id, b.state]).sort(), [
-    ["ansi", "on"],
-    ["paging", "measure"],
-  ]);
+  assert.ok(response.stdout.includes("row 450")); // paging is off
+  assert.deepEqual(
+    r.breakdown.map((b) => b.id),
+    ["ansi"]
+  );
   assert.ok(r.resultTokensAfter < r.resultTokens);
 });
 

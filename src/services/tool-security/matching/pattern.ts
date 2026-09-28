@@ -3,11 +3,11 @@ import { resolve } from "node:path";
 
 // A rule is written like Claude Code permissions: `Tool` or `Tool(pattern)`.
 //   Bash(git *)        any git command ("git" alone also matches: a trailing " *" is optional)
-//   Shell(git *)       the same for Bash and PowerShell (groups: Shell, FileEdit, File)
+//   Shell(git *)       the same for Bash and PowerShell (groups: Shell, FileRead, FileEdit, File)
 //   Edit({cwd}/**)     any file inside the current project
 //   mcp__github__*     every tool of that MCP server
 // Wildcards: `*` = anything, `?` = one character. In path patterns `*` stays inside one
-// folder and `**` crosses folders. Placeholders: {cwd} = project folder, {home} = home folder, {tmp} = system temp folder.
+// folder and `**` crosses folders; a trailing `/**` also matches the folder itself. Placeholders: {cwd} = project folder, {home} = home folder, {tmp} = system temp folder.
 
 export interface ParsedRule {
   tool: string;
@@ -34,6 +34,8 @@ export interface Subject {
 }
 
 const PATH_TOOLS = new Set(["Read", "Write", "Edit", "MultiEdit", "NotebookEdit"]);
+/** Search tools: their subject is the folder (or file) searched, the project folder when none is given. */
+const SEARCH_TOOLS = new Set(["Grep", "Glob"]);
 const IS_WINDOWS = process.platform === "win32";
 
 export function normalizePath(p: string): string {
@@ -56,6 +58,11 @@ export function extractSubject(toolName: string, toolInput: unknown, cwd: string
     }
   }
 
+  if (SEARCH_TOOLS.has(toolName)) {
+    const raw = typeof input.path === "string" && input.path.trim() ? input.path : ".";
+    return { kind: "path", value: normalizePath(resolve(cwd, raw)), caseInsensitive: IS_WINDOWS };
+  }
+
   if (toolName === "WebFetch" && typeof input.url === "string") {
     return { kind: "url", value: input.url, caseInsensitive: false };
   }
@@ -74,6 +81,11 @@ export function globToRegex(pattern: string, kind: SubjectKind | "tool", caseIns
   if ((kind === "command" || kind === "url") && body.endsWith(" *")) {
     body = body.slice(0, -2);
     optionalTail = "(?: [\\s\\S]*)?";
+  }
+  // "{cwd}/**" also matches the project folder itself (a Grep without a path searches it).
+  if (kind === "path" && body.endsWith("/**")) {
+    body = body.slice(0, -3);
+    optionalTail = "(?:/.*)?";
   }
 
   let out = "";
@@ -114,8 +126,9 @@ function expandPlaceholders(pattern: string, kind: SubjectKind, ctx: MatchContex
 /** Tool groups usable in rules: Shell(git *) covers Bash and PowerShell, and so on. */
 export const TOOL_GROUPS: Record<string, string[]> = {
   Shell: ["Bash", "PowerShell"],
+  FileRead: ["Read", "Grep", "Glob"],
   FileEdit: ["Edit", "Write", "MultiEdit", "NotebookEdit"],
-  File: ["Read", "Edit", "Write", "MultiEdit", "NotebookEdit"],
+  File: ["Read", "Grep", "Glob", "Edit", "Write", "MultiEdit", "NotebookEdit"],
 };
 
 export function toolMatches(rule: ParsedRule, toolName: string): boolean {
@@ -152,5 +165,6 @@ export function callFromRuleSyntax(text: string): { toolName: string; toolInput:
   if (tool === "Bash" || tool === "PowerShell") return { toolName: tool, toolInput: { command: pattern } };
   if (tool === "WebFetch") return { toolName: tool, toolInput: { url: pattern } };
   if (tool === "NotebookEdit") return { toolName: tool, toolInput: { notebook_path: pattern } };
+  if (tool === "Grep" || tool === "Glob") return { toolName: tool, toolInput: { path: pattern } };
   return { toolName: tool, toolInput: { file_path: pattern } };
 }

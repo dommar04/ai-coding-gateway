@@ -6,7 +6,7 @@ export const repeatedRead: OutputStrategy = {
   description:
     "When Claude reads the same file range again in the same session and nothing changed, it gets a short note instead of the content again. Resets when the conversation is compacted or cleared.",
   group: "Repeated content",
-  defaultState: "measure",
+  defaultState: "off",
   applies: (t, field) => t === "Read" && field === "content",
   apply: (text, ctx) => {
     if (!ctx.previousRead) return text;

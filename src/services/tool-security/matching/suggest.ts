@@ -53,7 +53,7 @@ function withPlaceholders(dir: string, cwd: string, home: string): string {
   return dir;
 }
 
-/** Ready-to-approve rules for the parts of a call that no allow rule covered. */
+/** Ready-made allow rules for the parts of a call that no allow rule covered. */
 export function suggestRules(
   toolName: string,
   subject: Subject | null,
@@ -78,7 +78,9 @@ export function suggestRules(
   }
 
   if (subject.kind === "path") {
-    const dir = subject.value.slice(0, subject.value.lastIndexOf("/")) || subject.value;
+    // Grep and Glob search a folder: the broad rule covers that folder, not its parent.
+    const searched = toolName === "Grep" || toolName === "Glob";
+    const dir = searched ? subject.value : subject.value.slice(0, subject.value.lastIndexOf("/")) || subject.value;
     return {
       exact: [`${toolName}(${withPlaceholders(subject.value, cwd, home)})`],
       broad: [`${toolName}(${withPlaceholders(dir, cwd, home)}/**)`],

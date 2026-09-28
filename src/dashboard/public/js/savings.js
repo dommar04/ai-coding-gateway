@@ -1,26 +1,15 @@
-// Token savings page: reduction options and totals.
-import { $, api, esc, guard, managed, state, toast, token } from "./core.js";
-import { fmtTok, pct, strategyTitle } from "./format.js";
+// Token savings page: reduction options.
+import { $, api, esc, guard, state, toast, token } from "./core.js";
+import { fmtTok, strategyTitle } from "./format.js";
 
 // ---------- token savings ----------
-export function renderSavingsTotals(t) {
-  $("#s-tokens").textContent = fmtTok(t.resultTokens);
-  $("#s-calls").textContent = `in ${Number(t.calls || 0).toLocaleString()} tool calls`;
-  $("#s-saved").textContent = fmtTok(t.savedTokens);
-  $("#s-saved-sub").textContent = `${pct(t.savedTokens, t.resultTokens)}% of tool result tokens`;
-  $("#s-potential").textContent = fmtTok(t.potentialTokens);
-  $("#s-input").textContent = fmtTok(t.inputTokens);
-}
-
 export async function loadStrategies() {
   const data = await api("GET", "/api/reduction");
   state.strategies = data.strategies;
-  renderSavingsTotals(data.totals);
   renderStrategies();
 }
 
 export function renderStrategies() {
-  const ro = managed();
   const groups = [];
   for (const s of state.strategies) {
     let g = groups.find((x) => x.name === s.group);
@@ -38,8 +27,8 @@ export function renderStrategies() {
           (s) => `
         <div class="strat" data-id="${esc(s.id)}">
           <div><div class="title">${esc(s.title)}</div><div class="desc">${esc(s.description)}</div></div>
-          <div class="stat">${s.savedTokens ? `<div class="saved">saved ${fmtTok(s.savedTokens)}</div>` : ""}${s.measuredTokens ? `<div class="measured">would save ${fmtTok(s.measuredTokens)}</div>` : ""}${s.calls ? `<div class="muted">${s.calls} call${s.calls === 1 ? "" : "s"}</div>` : '<div class="muted">no hits yet</div>'}</div>
-          <div class="seg state">${s.states.map((st) => `<button data-state="${st}" class="${s.state === st ? "on" : ""}" ${ro ? "disabled" : ""}>${st === "on" ? "On" : st === "measure" ? "Measure" : "Off"}</button>`).join("")}</div>
+          <div class="stat">${s.savedTokens ? `<div class="saved">saved ${fmtTok(s.savedTokens)}</div>` : ""}${s.calls ? `<div class="muted">${s.calls} call${s.calls === 1 ? "" : "s"}</div>` : '<div class="muted">no hits yet</div>'}</div>
+          <div class="seg state">${s.states.map((st) => `<button data-state="${st}" class="${s.state === st ? "on" : ""}">${st === "on" ? "On" : "Off"}</button>`).join("")}</div>
         </div>`
         )
         .join("")}

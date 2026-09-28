@@ -29,11 +29,9 @@ export const paging: OutputStrategy = {
 
     const safeId = ctx.toolUseId.replace(/[^\w-]/g, "_");
     const file = join(ctx.spillDir, `${safeId}-${ctx.field}.txt`);
-    if (!ctx.dryRun) {
-      mkdirSync(ctx.spillDir, { recursive: true });
-      writeFileSync(file, text);
-      cleanSpillDir(ctx.spillDir);
-    }
+    mkdirSync(ctx.spillDir, { recursive: true });
+    writeFileSync(file, text);
+    cleanSpillDir(ctx.spillDir);
 
     let head: string[];
     let tail: string[];

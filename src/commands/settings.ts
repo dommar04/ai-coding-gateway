@@ -1,16 +1,7 @@
-import {
-  MODES,
-  POLICY_SOURCES,
-  getMode,
-  getPolicySource,
-  setMode,
-  setPolicySource,
-  type Mode,
-  type PolicySource,
-} from "../services/settings";
+import { MODES, getMode, setMode, type Mode } from "../services/settings";
 import { fail } from "./args";
 
-// mode and policy: the gateway-wide settings.
+// mode: the gateway-wide enforcement setting.
 
 export function runMode(value: string | undefined): void {
   if (value === undefined) {
@@ -22,14 +13,4 @@ export function runMode(value: string | undefined): void {
   if (!MODES.includes(value as Mode)) fail(`Mode must be one of: ${MODES.join(", ")}`);
   setMode(value as Mode);
   console.log(`Mode set to ${value}.`);
-}
-
-export function runPolicy(value: string | undefined): void {
-  if (value === undefined) {
-    console.log(`Policy source: ${getPolicySource()}`);
-    return;
-  }
-  if (!POLICY_SOURCES.includes(value as PolicySource)) fail(`Policy source must be one of: ${POLICY_SOURCES.join(", ")}`);
-  setPolicySource(value as PolicySource);
-  console.log(`Policy source set to ${value}.`);
 }
