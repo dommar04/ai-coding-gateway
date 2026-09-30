@@ -8,11 +8,11 @@
 
 <h1 align="center">
   <img src="src/dashboard/public/assets/apichap-mark.png" alt="" width="44" align="center">
-  apichap AI Coding Gateway
+  apichap Agentic Coding Gateway
 </h1>
 
 <p align="center">
-  An AI coding gateway that inspects every tool call against global rules and reduces your token usage.
+  An Agentic coding gateway that inspects every tool call against global rules and reduces your token usage.
 </p>
 
 > **Beta:** the gateway is usable day to day, but rules, options and the database format may still change between versions. Feedback and issues are very welcome.
@@ -22,6 +22,8 @@
 - 🔍 **Track every tool access:** see each command, file edit and web request your AI agent makes, live.
 - 🪶 **Reduce token usage on tool calls:** noisy output (colors, progress bars, passing tests, install logs, huge results) is trimmed before Claude reads it. Every option can be switched on or off.
 - 🛡️ **Allow or deny commands globally:** one rule set for every project. Anything unknown is denied until you allow it, in one click from the activity.
+
+![Screenshot of the Agentic Coding Gateway Dashboard](https://github.com/dommar04/ai-coding-gateway/blob/develop/assets/dashboard.png?raw=true)
 
 ## How to use
 
