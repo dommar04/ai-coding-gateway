@@ -17,13 +17,17 @@
 
 > **Beta:** the gateway is usable day to day, but rules, options and the database format may still change between versions. Feedback and issues are very welcome.
 
+<p align="center">
+  <img src="assets/dashboard.png" alt="Agentic Coding Gateway Dashboard" width="1000">
+  <br>
+  <em>Code with Claude Code while watching Claude´s tool calls live and allow rules across your projects.</em>
+</p>
+
 ## Features
 
 - 🔍 **Track every tool access:** see each command, file edit and web request your AI agent makes, live.
 - 🪶 **Reduce token usage on tool calls:** noisy output (colors, progress bars, passing tests, install logs, huge results) is trimmed before Claude reads it. Every option can be switched on or off.
 - 🛡️ **Allow or deny commands globally:** one rule set for every project. Anything unknown is denied until you allow it, in one click from the activity.
-
-![Screenshot of the Agentic Coding Gateway Dashboard](https://github.com/dommar04/ai-coding-gateway/blob/develop/assets/dashboard.png?raw=true)
 
 ## How to use
 
