@@ -1,7 +1,7 @@
 {
   "$schema": "./rule-file.schema.json",
   "name": "apichap AI Coding Gateway default rules",
-  "version": 11,
+  "version": 14,
   "description": "Starter rules, one group per policy. Allow everyday coding work, block destructive or risky actions. Anything no rule allows is denied. A matching deny rule always wins.",
   "groups": [
     {
@@ -9,13 +9,14 @@
       "title": "The agent is not allowed to delete files",
       "description": "Deleting files and folders is not allowed. Deleting through git is covered by the git group below.",
       "deny": [
-        { "rule": "Shell(rm *)" },
+        { "rule": "DeleteFile", "note": "Block file deletions in Codex patches, including when an allow rule covers the path." },
+        { "rule": "Shell(rm *)", "note": "Delete files or folders with rm." },
         { "rule": "Shell(*/rm *)", "note": "rm called by its full path" },
-        { "rule": "Shell(rmdir *)" },
-        { "rule": "Shell(rd *)" },
-        { "rule": "Shell(del *)" },
-        { "rule": "Shell(erase *)" },
-        { "rule": "Shell(Remove-Item *)" },
+        { "rule": "Shell(rmdir *)", "note": "Remove directories with rmdir." },
+        { "rule": "Shell(rd *)", "note": "Remove directories with the Windows rd command." },
+        { "rule": "Shell(del *)", "note": "Delete files with the Windows del command." },
+        { "rule": "Shell(erase *)", "note": "Delete files with the Windows erase command." },
+        { "rule": "Shell(Remove-Item *)", "note": "Delete files or folders with PowerShell." },
         { "rule": "Shell(find * -delete*)", "note": "find -delete removes files" }
       ]
     },
@@ -136,11 +137,11 @@
       "id": "no-publishing",
       "title": "The agent is not allowed to publish packages",
       "description": "Publishing a package makes it public and usually cannot be undone.",
-      "deny": [{ "rule": "Shell(npm publish*)" }]
+      "deny": [{ "rule": "Shell(npm publish*)", "note": "Publish a package to the npm registry." }]
     },
     {
       "id": "protect-gateway",
-      "title": "The agent is not allowed to change the gateway or Claude Code's settings",
+      "title": "The agent is not allowed to change the gateway or agent hook settings",
       "description": "Otherwise the agent could switch the gateway off, allow its own calls or remove the hooks. Managing the gateway is for you, not the agent.",
       "deny": [
         { "rule": "Shell(apichap-gateway *)", "note": "the gateway's CLI" },
@@ -154,6 +155,12 @@
         { "rule": "Shell(*~/.ai-coding-gateway*)", "note": "the gateway's data" },
         { "rule": "FileEdit({home}/.ai-coding-gateway/**)", "note": "the gateway's data" },
         { "rule": "FileEdit(**/.claude/settings*.json)", "note": "Claude Code settings (hooks)" },
+        { "rule": "FileEdit(**/.codex/hooks.json)", "note": "Codex lifecycle hooks" },
+        { "rule": "FileEdit(**/.codex/config.toml)", "note": "Codex settings and inline hooks" },
+        { "rule": "Shell(*.codex/hooks.json*)", "note": "Codex lifecycle hooks" },
+        { "rule": "Shell(*.codex\\hooks.json*)", "note": "Codex lifecycle hooks" },
+        { "rule": "Shell(*.codex/config.toml*)", "note": "Codex settings and inline hooks" },
+        { "rule": "Shell(*.codex\\config.toml*)", "note": "Codex settings and inline hooks" },
         { "rule": "Shell(*.claude/settings*)", "note": "Claude Code settings (hooks)" },
         { "rule": "Shell(*.claude\\settings*)", "note": "Claude Code settings (hooks)" }
       ]
@@ -185,16 +192,16 @@
       "title": "The agent is allowed to plan, ask, search the web and use sub-agents",
       "description": "Claude Code's built-in helper tools. None of them change files or run commands on their own.",
       "allow": [
-        { "rule": "TodoWrite" },
-        { "rule": "Task" },
-        { "rule": "Agent" },
-        { "rule": "ToolSearch" },
-        { "rule": "Skill" },
-        { "rule": "AskUserQuestion" },
-        { "rule": "EnterPlanMode" },
-        { "rule": "ExitPlanMode" },
-        { "rule": "WebSearch" },
-        { "rule": "ListAgents" },
+        { "rule": "TodoWrite", "note": "Create or update the task checklist." },
+        { "rule": "Task", "note": "Delegate work to a Claude sub-agent." },
+        { "rule": "Agent", "note": "Start a Claude sub-agent." },
+        { "rule": "ToolSearch", "note": "Discover tools available to the agent." },
+        { "rule": "Skill", "note": "Load a skill and its instructions." },
+        { "rule": "AskUserQuestion", "note": "Ask the user for clarification." },
+        { "rule": "EnterPlanMode", "note": "Switch to planning mode." },
+        { "rule": "ExitPlanMode", "note": "Finish planning and request implementation approval." },
+        { "rule": "WebSearch", "note": "Search the web; only enforced when the runtime emits a hook." },
+        { "rule": "ListAgents", "note": "List available or running agents." },
         { "rule": "TaskStop", "note": "stop a background task" },
         { "rule": "TaskOutput", "note": "read a background task's output" },
         { "rule": "BashOutput", "note": "read a background shell's output" },
@@ -202,31 +209,58 @@
       ]
     },
     {
+      "id": "codex-tools",
+      "title": "The agent is allowed to plan, ask questions and manage Codex sub-agents",
+      "description": "Codex helper tools only. Bash/exec_command uses the shared Shell rules in the shell, git and tooling groups; apply_patch uses FileEdit rules; webrun uses the web-tools group. Each sub-agent tool call is checked separately when the runtime emits hooks.",
+      "allow": [
+        { "rule": "update_plan", "note": "Create or update the implementation plan." },
+        { "rule": "request_user_input", "note": "Ask the user for a decision or clarification." },
+        { "rule": "request_user_input_async", "note": "Ask for input while independent work continues." },
+        { "rule": "spawn_agent", "note": "Start a Codex sub-agent; its tool calls remain subject to rules." },
+        { "rule": "send_input", "note": "Send instructions to a Codex sub-agent." },
+        { "rule": "wait", "note": "Wait for a Codex sub-agent to finish." },
+        { "rule": "resume_agent", "note": "Resume a previously closed Codex sub-agent." },
+        { "rule": "close_agent", "note": "Close a Codex sub-agent." }
+      ]
+    },
+    {
+      "id": "web-tools",
+      "title": "The agent is allowed to search the web and fetch web pages",
+      "description": "Web lookup tools are matched by their reported name. Hosted web tools may not emit hooks, and web.run arguments are not checked against URL patterns.",
+      "allow": [
+        { "rule": "webrun", "note": "Search or browse with Codex's web tool when the hook reports webrun; arguments are not restricted by URL rules." },
+        { "rule": "web.run", "note": "Search or browse using the web tool when reported as web.run." },
+        { "rule": "web__run", "note": "Search or browse using the web tool when reported as web__run." },
+        { "rule": "WebFetch(https://*)", "note": "Fetch an HTTPS page; URL matching does not restrict it to public-network addresses." },
+        { "rule": "WebFetch(http://*)", "note": "Fetch an HTTP page; URL matching does not restrict it to public-network addresses." }
+      ]
+    },
+    {
       "id": "git",
       "title": "The agent is allowed to use git",
       "description": "Commit, branch, diff, pull and push. The risky parts are denied by the git groups above.",
-      "allow": [{ "rule": "Shell(git *)" }]
+      "allow": [{ "rule": "Shell(git *)", "note": "Run git commands; specific destructive operations are denied separately." }]
     },
     {
       "id": "node-tooling",
       "title": "The agent is allowed to install dependencies, build, test and format",
       "description": "npm and the usual npx tools for tests, linting, formatting and type checks.",
       "allow": [
-        { "rule": "Shell(npm install *)" },
-        { "rule": "Shell(npm ci *)" },
-        { "rule": "Shell(npm test *)" },
+        { "rule": "Shell(npm install *)", "note": "Install project dependencies; package lifecycle scripts may run." },
+        { "rule": "Shell(npm ci *)", "note": "Install dependencies from the lockfile; package lifecycle scripts may run." },
+        { "rule": "Shell(npm test *)", "note": "Run the project test script." },
         { "rule": "Shell(npm run *)", "note": "package scripts" },
-        { "rule": "Shell(npm ls *)" },
+        { "rule": "Shell(npm ls *)", "note": "List installed dependencies." },
         { "rule": "Shell(npm pack *)", "note": "build a local package tarball" },
         { "rule": "Shell(npm view *)", "note": "read package info from the registry" },
-        { "rule": "Shell(npm outdated *)" },
-        { "rule": "Shell(npm --version)" },
-        { "rule": "Shell(node --version)" },
-        { "rule": "Shell(npx prettier *)" },
-        { "rule": "Shell(npx eslint *)" },
-        { "rule": "Shell(npx vitest *)" },
-        { "rule": "Shell(npx jest *)" },
-        { "rule": "Shell(npx tsc *)" }
+        { "rule": "Shell(npm outdated *)", "note": "Check for outdated dependencies." },
+        { "rule": "Shell(npm --version)", "note": "Show the npm version." },
+        { "rule": "Shell(node --version)", "note": "Show the Node.js version." },
+        { "rule": "Shell(npx prettier *)", "note": "Check or format files with Prettier." },
+        { "rule": "Shell(npx eslint *)", "note": "Lint files with ESLint; --fix can edit files." },
+        { "rule": "Shell(npx vitest *)", "note": "Run tests with Vitest." },
+        { "rule": "Shell(npx jest *)", "note": "Run tests with Jest." },
+        { "rule": "Shell(npx tsc *)", "note": "Check TypeScript or compile the project." }
       ]
     },
     {
@@ -234,10 +268,10 @@
       "title": "The agent is allowed to run script files with node and python",
       "description": "Script files can be reviewed in the project. Inline code (node -e, python -c) is denied above.",
       "allow": [
-        { "rule": "Shell(node *)" },
-        { "rule": "Shell(npx tsx *)" },
-        { "rule": "Shell(python *)" },
-        { "rule": "Shell(python3 *)" }
+        { "rule": "Shell(node *)", "note": "Run Node.js scripts; inline evaluation is denied separately." },
+        { "rule": "Shell(npx tsx *)", "note": "Run TypeScript scripts; inline evaluation is denied separately." },
+        { "rule": "Shell(python *)", "note": "Run Python scripts; inline evaluation is denied separately." },
+        { "rule": "Shell(python3 *)", "note": "Run Python 3 scripts; inline evaluation is denied separately." }
       ]
     },
     {
@@ -245,39 +279,45 @@
       "title": "The agent is allowed to use basic shell commands",
       "description": "Look around, read, search and process text, create folders and empty files.",
       "allow": [
-        { "rule": "Shell(cd *)" },
-        { "rule": "Shell(ls *)" },
-        { "rule": "Shell(pwd)" },
-        { "rule": "Shell(cat *)" },
-        { "rule": "Shell(head *)" },
-        { "rule": "Shell(tail *)" },
-        { "rule": "Shell(wc *)" },
-        { "rule": "Shell(echo *)" },
-        { "rule": "Shell(printf *)" },
-        { "rule": "Shell(which *)" },
-        { "rule": "Shell(grep *)" },
-        { "rule": "Shell(rg *)" },
-        { "rule": "Shell(find *)" },
-        { "rule": "Shell(sort *)" },
-        { "rule": "Shell(uniq *)" },
-        { "rule": "Shell(diff *)" },
-        { "rule": "Shell(mkdir *)" },
-        { "rule": "Shell(touch *)" },
+        { "rule": "Shell(cd *)", "note": "Change the working directory." },
+        { "rule": "Shell(ls *)", "note": "List directory contents." },
+        { "rule": "Shell(pwd)", "note": "Show the working directory." },
+        { "rule": "Shell(cat *)", "note": "Read file contents; shell reads are not checked against file-path rules." },
+        { "rule": "Shell(head *)", "note": "Read the beginning of a file or command output." },
+        { "rule": "Shell(tail *)", "note": "Read the end of a file or command output." },
+        { "rule": "Shell(wc *)", "note": "Count lines, words or bytes." },
+        { "rule": "Shell(echo *)", "note": "Print text; redirection can write files." },
+        { "rule": "Shell(printf *)", "note": "Print formatted text; redirection can write files." },
+        { "rule": "Shell(which *)", "note": "Find an executable on PATH." },
+        { "rule": "Shell(grep *)", "note": "Search text using grep." },
+        { "rule": "Shell(rg *)", "note": "Search files using ripgrep." },
+        { "rule": "Shell(find *)", "note": "Find files; deletion and command execution are denied separately." },
+        { "rule": "Shell(sort *)", "note": "Sort lines of text." },
+        { "rule": "Shell(uniq *)", "note": "Remove or count adjacent duplicate lines." },
+        { "rule": "Shell(diff *)", "note": "Compare files or directories." },
+        { "rule": "Shell(mkdir *)", "note": "Create directories." },
+        { "rule": "Shell(touch *)", "note": "Create empty files or update file timestamps." },
         { "rule": "Shell(sed *)", "note": "can also edit files in place, like the Edit tool" },
-        { "rule": "Shell(awk *)" },
-        { "rule": "Shell(mktemp *)" },
-        { "rule": "Shell(test *)" },
-        { "rule": "Shell([ *)" },
-        { "rule": "Shell(date *)" },
-        { "rule": "PowerShell(Get-ChildItem *)" },
-        { "rule": "PowerShell(Get-Content *)" },
-        { "rule": "PowerShell(Get-Location *)" },
-        { "rule": "PowerShell(Set-Location *)" },
-        { "rule": "PowerShell(Select-String *)" },
-        { "rule": "PowerShell(Test-Path *)" },
-        { "rule": "PowerShell(Get-Command *)" },
-        { "rule": "PowerShell(Write-Output *)" },
-        { "rule": "PowerShell(New-Item -ItemType Directory *)" }
+        { "rule": "Shell(awk *)", "note": "Process text with awk; awk programs can also execute commands." },
+        { "rule": "Shell(mktemp *)", "note": "Create temporary files or directories." },
+        { "rule": "Shell(test *)", "note": "Check file properties or compare values." },
+        { "rule": "Shell([ *)", "note": "Evaluate a shell test expression." },
+        { "rule": "Shell(date *)", "note": "Show the date and time." },
+        { "rule": "Shell(Get-ChildItem *)", "note": "List files and directories with PowerShell." },
+        { "rule": "Shell(Get-Content *)", "note": "Read file contents; shell reads are not checked against file-path rules." },
+        { "rule": "Shell(Get-Location *)", "note": "Show the PowerShell working directory." },
+        { "rule": "Shell(Set-Location *)", "note": "Change the PowerShell working directory." },
+        { "rule": "Shell(Select-String *)", "note": "Search file contents or piped text." },
+        { "rule": "Shell(Select-Object *)", "note": "Select properties or a range of items from PowerShell pipeline output." },
+        { "rule": "Shell(Sort-Object *)", "note": "Sort PowerShell pipeline items by their properties." },
+        { "rule": "Shell(Measure-Object *)", "note": "Count or measure items from PowerShell pipeline output." },
+        { "rule": "Shell(Format-Table *)", "note": "Format PowerShell output as a table." },
+        { "rule": "Shell(Format-List *)", "note": "Format PowerShell output as a list of properties." },
+        { "rule": "Shell(Out-String *)", "note": "Convert PowerShell pipeline output to text." },
+        { "rule": "Shell(Test-Path *)", "note": "Check whether a file or directory exists." },
+        { "rule": "Shell(Get-Command *)", "note": "Find a PowerShell command or executable." },
+        { "rule": "Shell(Write-Output *)", "note": "Write values to the output pipeline." },
+        { "rule": "Shell(New-Item -ItemType Directory *)", "note": "Create a directory with PowerShell." }
       ]
     }
   ]

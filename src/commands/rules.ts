@@ -137,7 +137,7 @@ export function runRules(args: string[]): void {
       console.log(
         mode === "replace"
           ? `Reset to ${d.name} v${d.version}: removed ${r.removed}, imported ${r.added} in ${r.groups} groups. Now ${r.total} rules.`
-          : `Added ${r.added} missing rules and ${r.addedGroups} groups from ${d.name} v${d.version}. Now ${r.total} rules.`
+          : `Added ${r.added} missing rules and ${r.addedGroups} groups from ${d.name} v${d.version}. Filled ${r.commentsFilled ?? 0} missing comments. Now ${r.total} rules.`
       );
       return;
     }

@@ -1,14 +1,12 @@
-import { runContextReset } from "../integrations/claude/hooks/context-reset";
-import { runPostToolUse } from "../integrations/claude/hooks/post-tool-use";
-import { runPreToolUse } from "../integrations/claude/hooks/pre-tool-use";
-import { fail } from "./args";
-
-// hook pre|post|session: what Claude Code runs for every tool call (payload on stdin).
+import { integrationFor } from "../integrations";
+import { runIntegrationHook } from "../integrations/shared/hooks";
+import { fail, parseArgs } from "./args";
 export async function runHook(args: string[]): Promise<void> {
-  const [phase] = args;
-  if (phase === "pre") await runPreToolUse();
-  else if (phase === "post") await runPostToolUse();
-  else if (phase === "session") await runContextReset();
-  else fail("Usage: apichap-gateway hook pre|post|session");
+  const { positional, flags } = parseArgs(args);
+  const phase = positional[0];
+  if (!phase || !["pre", "post", "session", "prompt"].includes(phase))
+    fail("Usage: apichap-gateway hook pre|post|session|prompt --agent claude|codex");
+  const integration = integrationFor(typeof flags.agent === "string" ? flags.agent : undefined);
+  await runIntegrationHook(phase, integration);
   process.exit(0);
 }

@@ -28,9 +28,9 @@ test("--local hooks run exactly the given copy: source with tsx, build with node
   const path = tempSettings();
   installHooks({ path, localEntry: "/home/me/gw/src/main.ts" });
   const again = installHooks({ path });
-  assert.equal(again.replaced, 4);
+  assert.equal(again.replaced, 5);
   assert.equal(read(path).hooks.PreToolUse.length, 1);
-  assert.equal(read(path).hooks.PreToolUse[0].hooks[0].command, hookCommand("pre"));
+  assert.equal(read(path).hooks.PreToolUse[0].hooks[0].command, hookCommand("pre", { integration: "claude" }));
 });
 
 test("init creates settings.json when missing", () => {
@@ -39,10 +39,10 @@ test("init creates settings.json when missing", () => {
   assert.equal(result.backup, null);
   const s = read(path);
   assert.equal(s.hooks.PreToolUse[0].matcher, "*");
-  assert.equal(s.hooks.PreToolUse[0].hooks[0].command, hookCommand("pre"));
-  assert.equal(s.hooks.PostToolUse[0].hooks[0].command, hookCommand("post"));
-  assert.equal(s.hooks.PreCompact[0].hooks[0].command, hookCommand("session"));
-  assert.equal(s.hooks.SessionStart[0].hooks[0].command, hookCommand("session"));
+  assert.equal(s.hooks.PreToolUse[0].hooks[0].command, hookCommand("pre", { integration: "claude" }));
+  assert.equal(s.hooks.PostToolUse[0].hooks[0].command, hookCommand("post", { integration: "claude" }));
+  assert.equal(s.hooks.PreCompact[0].hooks[0].command, hookCommand("session", { integration: "claude" }));
+  assert.equal(s.hooks.SessionStart[0].hooks[0].command, hookCommand("session", { integration: "claude" }));
 });
 
 test("init keeps other settings and hooks, replaces older gateway hooks, and backs up", () => {
@@ -68,7 +68,7 @@ test("init keeps other settings and hooks, replaces older gateway hooks, and bac
   assert.deepEqual(s.permissions, { allow: ["Bash(npm test)"] });
   assert.deepEqual(s.hooks.Stop, [{ hooks: [{ type: "command", command: "notify" }] }]);
   const preCommands = s.hooks.PreToolUse.flatMap((e: { hooks: Array<{ command: string }> }) => e.hooks.map((h) => h.command));
-  assert.deepEqual(preCommands, ["my-linter", hookCommand("pre")]);
+  assert.deepEqual(preCommands, ["my-linter", hookCommand("pre", { integration: "claude" })]);
 
   // Running init twice does not duplicate the hooks.
   installHooks({ path });
@@ -86,7 +86,7 @@ test("uninstall removes only the gateway hooks", () => {
   const path = tempSettings({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "my-linter" }] }] } });
   installHooks({ path });
   const result = uninstallHooks({ path });
-  assert.equal(result.removed, 4);
+  assert.equal(result.removed, 5);
   assert.deepEqual(read(path).hooks, { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "my-linter" }] }] });
   assert.equal(uninstallHooks({ path }).removed, 0);
 });

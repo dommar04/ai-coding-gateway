@@ -1441,9 +1441,16 @@ dd {
 .pg:last-child {
   border-bottom: 0;
 }
+.pg-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-right: 16px;
+}
 .pg-head {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   width: 100%;
@@ -1487,9 +1494,20 @@ dd {
   align-items: center;
 }
 .pg-right {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   font-size: 12.5px;
   white-space: nowrap;
+}
+.pg-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pg-summary .tok {
+  width: 80px;
+  text-align: right;
 }
 .pg-right .usage {
   color: var(--muted);
@@ -1498,6 +1516,11 @@ dd {
 .pg-body {
   background: var(--sunken);
   border-top: 1px solid var(--border);
+}
+.pg-empty {
+  padding: 8px 16px;
+  color: var(--muted);
+  font-size: 13px;
 }
 .pg-body table td,
 .pg-body table th {
@@ -1722,4 +1745,67 @@ dl.flush {
 .banner-text {
   flex: 1;
   min-width: 240px;
+}
+.pg-head:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+.prompt-content {
+  padding: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+}
+dialog.prompt-dialog {
+  width: min(880px, calc(100vw - 32px));
+}
+.prompt-dialog .modal-head {
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.prompt-dialog .modal-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.prompt-dialog .modal-head button {
+  flex-shrink: 0;
+}
+.prompt-meta {
+  padding: 10px 16px 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.prompt-dialog .prompt-content {
+  min-height: 0;
+  overflow: auto;
+  border-bottom: 0;
+}
+@media (max-width: 700px) {
+  .pg-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .pg-header .pg-right {
+    grid-column: 1 / -1;
+    padding: 0 0 10px 16px;
+    align-items: flex-start;
+  }
+}
+.prompt-content > :first-child {
+  margin-top: 0;
+}
+.prompt-content > :last-child {
+  margin-bottom: 0;
+}
+.prompt-content pre {
+  overflow-x: auto;
+  white-space: pre;
+  padding: 12px;
+}
+.prompt-content code {
+  font-family: monospace;
+}
+.prompt-content blockquote {
+  margin-left: 0;
+  padding-left: 12px;
+  border-left: 3px solid currentColor;
 }

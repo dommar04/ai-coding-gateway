@@ -20,7 +20,8 @@ import {
 } from "../storage/tables/tool-calls";
 import { countEnabledRules, getRule } from "../storage/tables/tool-rules";
 import { inputDescription, summarizeInput } from "../helpers/summary";
-import { promptInfo } from "../integrations/claude/transcript";
+import { integrationFor } from "../integrations";
+import { getPrompt, lastPromptRowId, promptsSince } from "../storage/tables/prompts";
 import { listStrategies, setStrategyState } from "../services/reduction/options";
 import type { StrategyState } from "../services/reduction/strategies";
 import { callFromRuleSyntax } from "../services/tool-security/matching/pattern";
@@ -114,6 +115,7 @@ function toCall(row: ToolCallRow, full = false) {
   return {
     id: row.id,
     toolUseId: row.tool_use_id,
+    integration: row.integration,
     sessionId: row.session_id,
     project: row.project,
     tool: row.tool_name,
@@ -142,13 +144,17 @@ function toCall(row: ToolCallRow, full = false) {
 // ---------- prompt groups ----------
 
 function toPrompt(row: PromptGroupRow) {
-  const info = promptInfo(row.transcript_path, row.prompt_id);
+  const stored = getPrompt(row.prompt_id);
+  const integration = integrationFor(row.integration);
+  const info = integration.promptInfo(row.transcript_path, row.prompt_id);
+  const text = stored?.text ?? info?.text ?? null;
   return {
     promptId: row.prompt_id,
+    integration: row.integration,
     sessionId: row.session_id,
     project: row.project,
-    text: info?.text ?? null,
-    at: info?.at ?? row.first_at,
+    text: text === null ? null : (integration.displayPrompt?.(text) ?? text),
+    at: stored?.submitted_at ?? info?.at ?? row.first_at,
     lastAt: row.last_at,
     callCount: row.calls,
     denied: row.denied,
@@ -269,6 +275,7 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
   // ---------- live feed: one poller for all SSE clients ----------
   const clients = new Set<ServerResponse>();
   let lastId = lastCallId();
+  let lastPromptId = lastPromptRowId();
   let lastCompleted = new Date().toISOString();
   let lastStats = "";
 
@@ -279,6 +286,12 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
 
   const poll = () => {
     try {
+      const newPrompts = promptsSince(lastPromptId);
+      if (newPrompts.length) {
+        const groups = newPrompts.map((p) => getPromptGroup(p.prompt_id)).filter((g): g is PromptGroupRow => !!g);
+        if (clients.size) broadcast("prompts", groups.map(toPrompt));
+        lastPromptId = newPrompts[newPrompts.length - 1].id;
+      }
       const fresh = listCallsSince(lastId);
       if (fresh.length) lastId = fresh[fresh.length - 1].id;
       const completed = listCallsCompletedSince(lastCompleted);
@@ -333,8 +346,8 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 40, 1), 200);
       return sendJson(res, 200, listPromptGroups(limit, url.searchParams.get("project") || undefined).map(toPrompt));
     }
-    if (method === "GET" && (m = path.match(/^\/api\/prompts\/([\w-]+)$/))) {
-      const group = getPromptGroup(m[1]);
+    if (method === "GET" && (m = path.match(/^\/api\/prompts\/([^/]+)$/))) {
+      const group = getPromptGroup(decodeURIComponent(m[1]));
       if (!group) throw new HttpError(404, "Prompt not found");
       return sendJson(res, 200, toPrompt(group));
     }

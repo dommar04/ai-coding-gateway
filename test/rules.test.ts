@@ -362,3 +362,33 @@ test("{tmp} matches the system temp folder", () => {
   const scratch = join(tmpdir(), "claude", "session", "notes.md");
   assert.equal(run("Write", { file_path: scratch }).decision, "allow");
 });
+
+test("every default rule has its own explanatory comment", () => {
+  assert.ok(seedRules.every((r) => typeof r.note === "string" && r.note.trim().length > 0));
+});
+
+test("Codex helpers and web names have explicit defaults while shell and file restrictions remain", () => {
+  for (const name of [
+    "update_plan",
+    "request_user_input",
+    "request_user_input_async",
+    "spawn_agent",
+    "send_input",
+    "wait",
+    "resume_agent",
+    "close_agent",
+    "web.run",
+    "web__run",
+  ]) {
+    assert.equal(run(name, {}).decision, "allow", name);
+  }
+  assert.equal(run("WebFetch", { url: "https://example.com/docs" }).decision, "allow");
+  assert.equal(run("Bash", { command: "Get-Content README.md" }).decision, "allow");
+  assert.equal(run("PowerShell", { command: "Get-Content README.md" }).decision, "allow");
+  assert.equal(bash("rm -rf x").decision, "deny");
+  assert.equal(run("DeleteFile", { file_path: "src/a.ts" }).decision, "deny");
+  assert.equal(run("view_image", { path: join(CWD, "image.png") }).decision, "allow");
+  assert.equal(run("view_image", { path: join(HOME, "image.png") }).decision, "deny");
+  assert.equal(run("view_image", { path: join(CWD, ".env.png") }).decision, "deny");
+  assert.equal(run("unknown_tool", {}).decision, "deny");
+});

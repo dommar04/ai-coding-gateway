@@ -78,8 +78,8 @@ export function tokenCell(c) {
   if (t.result == null) return '<span class="muted">—</span>';
   const saved = (t.result || 0) - (t.resultAfter ?? t.result);
   const title =
-    `Claude wrote ${fmtTok(t.input)} tokens for this call · result ${fmtTok(t.result)} tokens` +
-    (saved > 0 ? ` · Claude received ${fmtTok(t.resultAfter)}` : "");
+    `Agent wrote ${fmtTok(t.input)} tokens for this call · result ${fmtTok(t.result)} tokens` +
+    (saved > 0 ? ` · Agent received ${fmtTok(t.resultAfter)}` : "");
   return (
     `<span class="tok" title="${esc(title)}">${fmtTok(t.result)}` +
     (saved > 0

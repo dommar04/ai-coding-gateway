@@ -49,8 +49,6 @@ export const state = {
   calls: new Map(),
   prompts: new Map(),
   expanded: new Set(),
-  paused: false,
-  queued: [],
   rules: [],
   groups: [],
   openGroups: new Set(),

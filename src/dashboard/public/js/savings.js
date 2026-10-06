@@ -21,7 +21,6 @@ export function renderStrategies() {
       (g) => `
     <div class="card">
       <div class="card-head"><h2>${esc(g.name)}</h2></div>
-      ${g.name === "Before the call runs" ? '<div class="note-warn">These change the tool call itself before it runs. Only rewrites that make output smaller; check that Claude Code still asks you for permission where it normally would.</div>' : ""}
       ${g.items
         .map(
           (s) => `

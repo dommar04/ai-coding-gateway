@@ -65,3 +65,29 @@ test("PreToolUse still denies by rule in enforce mode", () => {
 test("session hook runs without output", () => {
   assert.deepEqual(hook("session", { session_id: "s1", hook_event_name: "PreCompact" }), {});
 });
+
+test("Claude prompt hook records prompts without a tool call and links calls missing prompt_id", () => {
+  const input = { session_id: "prompt-session", cwd: dir, hook_event_name: "UserPromptSubmit", prompt: "say hello" };
+  assert.deepEqual(hook("prompt", input), {});
+  assert.deepEqual(
+    hook("pre", {
+      session_id: "prompt-session",
+      cwd: dir,
+      hook_event_name: "PreToolUse",
+      tool_use_id: "prompt-linked-call",
+      tool_name: "Bash",
+      tool_input: { command: "git status" },
+    }),
+    {}
+  );
+  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
+  const db = new DatabaseSync(join(dir, "gateway.sqlite"));
+  const prompt = db.prepare("SELECT prompt_id, text, integration FROM prompts WHERE session_id = ?").get("prompt-session")!;
+  assert.equal(prompt.text, "say hello");
+  assert.equal(prompt.integration, "claude");
+  assert.equal(
+    db.prepare("SELECT prompt_id FROM tool_calls WHERE tool_use_id = ?").get("prompt-linked-call")!.prompt_id,
+    prompt.prompt_id
+  );
+  db.close();
+});

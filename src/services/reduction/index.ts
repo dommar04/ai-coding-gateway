@@ -2,7 +2,7 @@ import type { ToolCall } from "../../entities/tool-call";
 import { GATEWAY_DIR } from "../../storage/database";
 import { deleteSessionReads, getCachedRead, putCachedRead } from "../../storage/tables/read-cache";
 import { callIdForToolUse } from "../../storage/tables/tool-calls";
-import { rewriteInput } from "./input-strategies";
+import { OUTPUT_STRATEGIES } from "./strategies";
 import { recordStrategySavings, strategyStates } from "./options";
 import { reduceResult, spillDirFor, type ReduceResult } from "./pipeline";
 
@@ -11,14 +11,8 @@ import { reduceResult, spillDirFor, type ReduceResult } from "./pipeline";
 
 export type { ReduceResult } from "./pipeline";
 
-/** Input strategies that are "on" (limit big reads, quiet npm, ...). Null when nothing changed. */
-export function rewriteToolInput(call: ToolCall) {
-  const states = strategyStates();
-  return rewriteInput(call.toolName, call.toolInput, call.cwd, (id) => states.get(id) === "on");
-}
-
 /** Runs the output strategies over a result and records their savings. */
-export function reduceToolResult(call: ToolCall, response: unknown): ReduceResult {
+export function reduceToolResult(call: ToolCall, response: unknown, enabled = true): ReduceResult {
   // Sub-agents have their own context: what the main agent read doesn't count for them.
   const sessionKey = call.agentId ? `${call.sessionId}:${call.agentId}` : call.sessionId;
   const result = reduceResult({
@@ -26,7 +20,7 @@ export function reduceToolResult(call: ToolCall, response: unknown): ReduceResul
     toolInput: call.toolInput,
     toolResponse: response,
     toolUseId: call.toolUseId,
-    states: strategyStates(),
+    states: enabled ? strategyStates() : new Map(OUTPUT_STRATEGIES.map((s) => [s.id, "off" as const])),
     spillDir: spillDirFor(GATEWAY_DIR),
     readCache: {
       lastRead: (key) => {
