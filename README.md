@@ -56,41 +56,61 @@ The gateway uses hooks in Claude Code and Codex to see tool calls before they ru
 It checks each call against your rules, records what happened, and can shorten results before they return to the conversation. The agent's own permission checks still apply; the gateway adds restrictions.
 
 ```mermaid
-flowchart LR
-    subgraph Agents[AI coding agents]
-        Claude[Claude Code]
-        Codex[Codex]
+sequenceDiagram
+    actor User
+    participant Agent as Claude Code or Codex
+    participant Hook as apichap hook interceptor
+    participant Gateway as Gateway services
+    participant Tool as Command or other tool
+
+    User->>Agent: Submit prompt
+    Agent->>Hook: Prompt hook
+    Hook->>Gateway: Record prompt
+    Gateway-->>Hook: Prompt recorded
+    Hook-->>Agent: Continue
+
+    loop Each tool call
+        Agent->>Hook: Pre-tool hook with call details
+        Hook->>Gateway: Check rules and mode
+        Gateway->>Gateway: Record decision
+        alt Denied in enforce mode
+            Gateway-->>Hook: Deny with reason
+            Hook-->>Agent: Block call with reason
+        else Allowed, or monitor/off mode
+            Hook-->>Agent: Let call proceed
+            Agent->>Tool: Run tool
+            Tool-->>Hook: Post-tool hook with result
+            Hook->>Gateway: Record result
+            alt Claude Code and reduction enabled
+                Gateway->>Gateway: Shorten result
+                Gateway-->>Hook: Reduced result
+                Hook-->>Agent: Use reduced result
+            else Codex or reduction disabled
+                Hook-->>Agent: Continue with original result
+            end
+        end
     end
 
-    subgraph Gateway[apichap gateway]
-        Pre[Hook interceptor<br/>before tool call]
-        Rules[Rule checks and enforcement]
-        Post[Hook interceptor<br/>after tool result]
-        Activity[Activity tracking]
-        Reduce[Result reduction<br/>when enabled and supported]
-    end
-
-    Tool[Agent tool]
-    Blocked[Call blocked with a reason]
-
-    Claude -->|Tool call| Pre
-    Codex -->|Tool call| Pre
-    Pre --> Rules
-    Rules -->|Allowed, or monitor/off mode| Tool
-    Rules -->|Denied in enforce mode| Blocked
-    Rules -->|Record decision| Activity
-    Blocked -->|Denial| Claude
-    Blocked -->|Denial| Codex
-    Tool -->|Tool result| Post
-    Post --> Activity
-    Post --> Reduce
-    Reduce --> Claude
-    Reduce --> Codex
+    Agent-->>User: Respond
 ```
 
 In **monitor** mode, the gateway reports calls that rules would deny but lets them run. In **off** mode, it skips rule checks. **Enforce** blocks denied and unlisted calls.
 
-## Supported agents
+## Documentation
+
+- [Supported agents](#supported-agents)
+- [Dashboard](#dashboard)
+- [Rules](#rules)
+- [Modes](#modes)
+- [Token reduction](#token-reduction)
+- [Command line](#command-line)
+- [Data and privacy](#data-and-privacy)
+- [Limitations](#limitations)
+- [Development](#development)
+- [Teams and enterprise (roadmap)](#teams-and-enterprise-roadmap)
+- [License](#license)
+
+### Supported agents
 
 Install the integration you use. The gateway shares its rules, mode, dashboard, and local history across integrations.
 
@@ -117,19 +137,6 @@ npx apichap-ai-coding-gateway uninstall --agent claude
 ```
 
 `init` backs up the settings file, preserves other settings and hooks, and replaces earlier gateway hooks. You can run it again safely.
-
-## Documentation
-
-- [Dashboard](#dashboard)
-- [Rules](#rules)
-- [Modes](#modes)
-- [Token reduction](#token-reduction)
-- [Command line](#command-line)
-- [Data and privacy](#data-and-privacy)
-- [Limitations](#limitations)
-- [Development](#development)
-- [Teams and enterprise (roadmap)](#teams-and-enterprise-roadmap)
-- [License](#license)
 
 ### Dashboard
 
