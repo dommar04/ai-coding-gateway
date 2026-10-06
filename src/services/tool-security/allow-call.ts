@@ -28,7 +28,13 @@ export function allowOptions(call: CallRef): AllowOptions {
     const r = verdict.rule;
     return { state: "denied-by-rule", rule: { id: r.id, rule: r.rule, note: r.note, group: r.group_title ?? null } };
   }
-  const suggestions = suggestRules(call.toolName, verdict.subject, verdict.uncovered, call.cwd, homedir());
+  const suggestions = suggestRules(
+    verdict.evaluatedToolName ?? call.toolName,
+    verdict.subject,
+    verdict.uncovered,
+    call.cwd,
+    homedir()
+  );
   return { state: "unlisted", uncovered: verdict.uncovered, ...suggestions };
 }
 

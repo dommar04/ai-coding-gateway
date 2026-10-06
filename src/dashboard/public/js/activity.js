@@ -1,7 +1,8 @@
 // Activity page: prompt groups, calls, filters, project filter, call details.
 import { $, $$, MAX_CALLS, api, esc, guard, state, toast } from "./core.js";
-import { baseName, callRow, decisionBadge, fmtTime, fmtTok, pct, reasonLong, strategyTitle } from "./format.js";
+import { baseName, callRow, decisionBadge, fmtTime, fmtTok, isBlocked, pct, reasonLong, strategyTitle } from "./format.js";
 import { openAllowDialog } from "./allow.js";
+import { renderMarkdown } from "./markdown.js";
 
 // ---------- activity: calls and prompt groups ----------
 export function addToolOption(tool) {
@@ -61,7 +62,16 @@ export function upsertCalls(list, markNew) {
     let g = state.prompts.get(c.promptId);
     if (!g && !markNew) continue; // older prompt outside the loaded groups
     if (!g) {
-      g = { promptId: c.promptId, text: null, at: c.startedAt, project: c.project, calls: [], usage: null, _new: markNew };
+      g = {
+        promptId: c.promptId,
+        integration: c.integration,
+        text: null,
+        at: c.startedAt,
+        project: c.project,
+        calls: [],
+        usage: null,
+        _new: markNew,
+      };
       state.prompts.set(c.promptId, g);
       if (markNew) state.expanded.add(c.promptId);
     }
@@ -80,6 +90,7 @@ export function upsertCalls(list, markNew) {
 
 export function setPrompts(list) {
   for (const p of list) {
+    if (!knownProject(p.project)) addProjectOption(p.project, 0);
     p.calls = (p.calls || []).map((c) => {
       const existing = state.calls.get(c.id);
       const merged = { ...existing, ...c };
@@ -99,7 +110,7 @@ export function matches(c) {
   return (
     (!state.project || c.project === state.project) &&
     (!tool || c.tool === tool) &&
-    (!decision || c.decision === decision) &&
+    (!decision || (decision === "denied" ? isBlocked(c) : c.decision === decision)) &&
     (!text || `${c.description ?? ""} ${c.summary} ${c.project} ${c.tool}`.toLowerCase().includes(text))
   );
 }
@@ -114,9 +125,17 @@ export function renderGrouped() {
   const filtering = $("#f-text").value || $("#f-tool").value || $("#f-decision").value || state.project;
   const groups = [...state.prompts.values()].sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   const html = groups
-    .map((g) => {
+    .map((g, index) => {
       const calls = g.calls.filter(matches);
-      if (filtering && !calls.length) return "";
+      if (
+        filtering &&
+        !calls.length &&
+        ($("#f-tool").value ||
+          $("#f-decision").value ||
+          (state.project && g.project !== state.project) ||
+          ($("#f-text").value && !(g.text || "").toLowerCase().includes($("#f-text").value.toLowerCase())))
+      )
+        return "";
       const open = state.expanded.has(g.promptId);
       const blocked = g.denied
         ? `<span class="pill bad">${g.denied} denied</span>`
@@ -125,25 +144,31 @@ export function renderGrouped() {
           : "";
       const t = g.tokens || {};
       const text = g.text
-        ? `<div class="pg-text" title="${esc(g.text)}">${esc(g.text)}</div>`
+        ? `<div class="pg-text">${esc(g.text)}</div>`
         : '<div class="pg-text none">Prompt text not available</div>';
+      const body = open
+        ? g.callCount === 0
+          ? `<div class="pg-body pg-empty" id="prompt-body-${index}">No tool call yet.</div>`
+          : `<div class="pg-body" id="prompt-body-${index}"><table><thead><tr><th>Time</th><th>Tool</th><th>Call</th><th>Tokens</th><th>Decision</th><th>Status</th></tr></thead>
+        <tbody>${calls.map(callRow).join("")}</tbody></table></div>`
+        : `<div id="prompt-body-${index}" hidden></div>`;
       return `<div class="pg ${open ? "open" : ""} ${g._new ? "new" : ""}" data-pid="${esc(g.promptId)}">
-      <button class="pg-head" aria-expanded="${open}">
+      <div class="pg-header">
+      <button class="pg-head" aria-expanded="${open}" aria-controls="prompt-body-${index}">
         <svg class="icon chev"><use href="#i-chevron"/></svg>
         <div class="minw0">${text}
-          <div class="pg-meta"><span>${esc(fmtTime(g.at))}</span><span>·</span><span>${esc(baseName(g.project))}</span><span>·</span>
+          <div class="pg-meta"><span>${esc(g.integration === "codex" ? "Codex" : "Claude Code")}</span><span>·</span><span>${esc(fmtTime(g.at))}</span><span>·</span><span>${esc(baseName(g.project))}</span><span>·</span>
             <span>${g.callCount} tool call${g.callCount === 1 ? "" : "s"}</span>${blocked}</div></div>
-        <div class="pg-right">
-          <div class="tok">Tools ${fmtTok(t.result)} tok${t.saved > 0 ? ` <span class="saved">−${fmtTok(t.saved)} (${pct(t.saved, t.result)}%)</span>` : ""}</div>
-          <div class="usage">${esc(usageLine(g.usage))}</div>
-        </div>
       </button>
-      ${
-        open
-          ? `<div class="pg-body"><table><thead><tr><th>Time</th><th>Tool</th><th>Call</th><th>Tokens</th><th>Decision</th><th>Status</th></tr></thead>
-        <tbody>${calls.map(callRow).join("")}</tbody></table></div>`
-          : ""
-      }
+      <div class="pg-right">
+          <div class="pg-summary">
+            ${g.text ? '<button class="btn sm pg-view" type="button" data-view-prompt aria-haspopup="dialog">View prompt</button>' : ""}
+            <div class="tok">Tools ${fmtTok(t.result)} tok${t.saved > 0 ? ` <span class="saved">−${fmtTok(t.saved)} (${pct(t.saved, t.result)}%)</span>` : ""}</div>
+          </div>
+          <div class="usage">${esc(usageLine(g.usage))}</div>
+      </div>
+      </div>
+      ${body}
     </div>`;
     })
     .join("");
@@ -157,10 +182,7 @@ export function renderCalls() {
   renderGrouped();
   for (const c of state.calls.values()) c._new = false;
   $("#calls-empty").hidden = state.calls.size > 0;
-  $("#calls-count").textContent =
-    `${state.prompts.size} prompts · ` +
-    `Showing ${rows.length} of ${state.calls.size} calls` +
-    (state.queued.length ? ` · ${state.queued.length} new while paused` : "");
+  $("#calls-count").textContent = `${state.prompts.size} prompts · ` + `Showing ${rows.length} of ${state.calls.size} calls`;
 }
 
 // ---------- project filter ----------
@@ -213,25 +235,40 @@ $("#f-project").addEventListener(
 
 ["#f-text", "#f-tool", "#f-decision"].forEach((s) => $(s).addEventListener("input", renderCalls));
 $("#grouped-view").addEventListener("click", (e) => {
+  const view = e.target.closest("[data-view-prompt]");
+  if (view) {
+    const pid = view.closest(".pg").dataset.pid;
+    const group = state.prompts.get(pid);
+    if (!group?.text) return;
+    promptDialogId = pid;
+    $("#prompt-title").textContent = "Prompt Detail";
+    $("#prompt-meta").textContent =
+      `${group.integration === "codex" ? "Codex" : "Claude Code"} · ${fmtTime(group.at)} · ${baseName(group.project)}`;
+    $("#prompt-content").innerHTML = renderMarkdown(group.text);
+    $("#prompt-dialog").showModal();
+    $("#prompt-content").scrollTop = 0;
+    return;
+  }
   const head = e.target.closest(".pg-head");
   if (!head) return;
   const pid = head.closest(".pg").dataset.pid;
   if (state.expanded.has(pid)) state.expanded.delete(pid);
   else state.expanded.add(pid);
   renderCalls();
+  [...$$("#grouped-view .pg")]
+    .find((group) => group.dataset.pid === pid)
+    ?.querySelector(".pg-head")
+    ?.focus();
 });
-$("#pause").addEventListener("click", () => {
-  state.paused = !state.paused;
-  $("#pause").innerHTML = state.paused
-    ? '<svg class="icon"><use href="#i-play"/></svg><span>Resume</span>'
-    : '<svg class="icon"><use href="#i-pause"/></svg><span>Pause</span>';
-  if (!state.paused && state.queued.length) {
-    const q = state.queued;
-    state.queued = [];
-    upsertCalls(q, true);
-  } else renderCalls();
+let promptDialogId = null;
+$("#prompt-close").addEventListener("click", () => $("#prompt-dialog").close());
+$("#prompt-dialog").addEventListener("close", () => {
+  [...$$("#grouped-view .pg")]
+    .find((group) => group.dataset.pid === promptDialogId)
+    ?.querySelector("[data-view-prompt]")
+    ?.focus();
+  promptDialogId = null;
 });
-
 // ---------- call details ----------
 
 let detailCall = null;
@@ -259,13 +296,14 @@ export async function openCall(id) {
       <dt>Decision</dt><dd>${decisionBadge(c.decision)}${reasonLong(c)}</dd>
       <dt>Started</dt><dd>${esc(fmtTime(c.startedAt))}${c.durationMs != null ? ` · took ${(c.durationMs / 1000).toFixed(2)}s` : ""}</dd>
       <dt>Project</dt><dd class="mono">${esc(c.project)}</dd>
+      <dt>Integration</dt><dd>${esc(c.integration === "codex" ? "Codex" : "Claude Code")}</dd>
       <dt>Session</dt><dd class="mono">${esc(c.sessionId)}${c.agentId ? ` · agent ${esc(c.agentId)}` : ""}</dd>
       <dt>Tool use id</dt><dd class="mono">${esc(c.toolUseId)}</dd>
     </dl>
     <h3>Tokens (estimated)</h3>
     <dl class="flush">
-      <dt>Claude wrote</dt><dd>${fmtTok(t.input)} tokens for the call</dd>
-      <dt>Result</dt><dd>${t.result == null ? "—" : `${fmtTok(t.result)} tokens`}${saved > 0 ? ` → Claude received <b>${fmtTok(t.resultAfter)}</b> <span class="saved">(−${fmtTok(saved)}, ${pct(saved, t.result)}%)</span>` : ""}</dd>
+      <dt>Agent wrote</dt><dd>${fmtTok(t.input)} tokens for the call</dd>
+      <dt>Result</dt><dd>${t.result == null ? "—" : `${fmtTok(t.result)} tokens`}${saved > 0 ? ` → Agent received <b>${fmtTok(t.resultAfter)}</b> <span class="saved">(−${fmtTok(saved)}, ${pct(saved, t.result)}%)</span>` : ""}</dd>
     </dl>
     ${breakdown ? `<div class="breakdown">${breakdown}</div>` : ""}
     ${rewrite ? `<h3>Changed before it ran</h3><div class="muted text13">${rewrite.applied.map((id) => esc(strategyTitle(id))).join(", ")}</div><pre>${json(rewrite.notes.join("\n"))}</pre>` : ""}
@@ -278,7 +316,7 @@ export async function openCall(id) {
     <h3>Input</h3><pre>${json(c.input)}</pre>
     ${
       c.reducedResult != null
-        ? `<div class="tabs"><button class="on" data-tab="sent">Sent to Claude</button><button data-tab="orig">Original result</button></div>
+        ? `<div class="tabs"><button class="on" data-tab="sent">Sent to agent</button><button data-tab="orig">Original result</button></div>
       <pre data-pane="sent">${json(c.reducedResult)}</pre><pre data-pane="orig" hidden>${json(c.result)}</pre>`
         : `<h3>Result</h3><pre>${c.result == null ? '<span class="muted">—</span>' : json(c.result)}</pre>`
     }`;
@@ -318,7 +356,10 @@ export const closeDetail = () => {
 };
 $("#detail-close").addEventListener("click", closeDetail);
 // Escape inside the allow dialog closes only the dialog.
-document.addEventListener("keydown", (e) => e.key === "Escape" && !$("#allow-dialog").open && closeDetail());
+document.addEventListener(
+  "keydown",
+  (e) => e.key === "Escape" && !$("#allow-dialog").open && !$("#prompt-dialog").open && closeDetail()
+);
 
 // ---------- resizing the details (drag the left edge; the width is remembered) ----------
 const DRAWER_KEY = "apichap-gateway-drawer-width";

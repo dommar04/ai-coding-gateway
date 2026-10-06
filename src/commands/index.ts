@@ -22,10 +22,10 @@ export const COMMANDS: Record<string, Command> = {
 };
 
 export const USAGE = [
-  "  apichap-gateway init [--installed | --local] [--settings path]   (register the hooks in Claude Code)",
-  "  apichap-gateway uninstall [--settings path]  (remove the hooks again)",
+  "  apichap-gateway init --agent claude|codex [--installed | --local] [--settings path]   (register agent hooks)",
+  "  apichap-gateway uninstall --agent claude|codex [--settings path]  (remove the hooks again)",
   "  apichap-gateway reduction [list] | set <id> on|off   (token reduction options)",
-  "  apichap-gateway hook pre|post|session                 (invoked by Claude Code hooks, reads JSON from stdin)",
+  "  apichap-gateway hook pre|post|session --agent claude|codex   (agent hooks, reads JSON from stdin)",
   "  apichap-gateway list [n]                      (print the last n logged tool calls, default 20)",
   "  apichap-gateway rules [list]                  (show the rule groups and their rules)",
   '  apichap-gateway rules add allow|deny "Tool(pattern)" [--note "why"] [--group <key>]',

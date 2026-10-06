@@ -82,6 +82,14 @@ export function setRuleEnabled(id: number, enabled: boolean): boolean {
   return sql(`UPDATE tool_rules SET enabled = ? WHERE id = ?`).run(enabled ? 1 : 0, id).changes > 0;
 }
 
+/** Fill a missing default comment without changing user notes, enabled state or group. */
+export function fillDefaultRuleNote(effect: "allow" | "deny", rule: string, note: string): number {
+  return Number(
+    sql(`UPDATE tool_rules SET note = ? WHERE effect = ? AND rule = ?
+    AND source = 'default' AND (note IS NULL OR trim(note) = '')`).run(note, effect, rule).changes
+  );
+}
+
 export function setRuleGroup(id: number, groupId: number): boolean {
   return sql(`UPDATE tool_rules SET group_id = ? WHERE id = ?`).run(groupId, id).changes > 0;
 }

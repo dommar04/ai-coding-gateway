@@ -53,7 +53,7 @@ src/
     server.ts                      local HTTP server and its JSON API routes
     public/                        the page: index.html, styles.css, js/ (plain ES modules, no build step)
   services/                        agent-neutral logic, no SQL
-    gateway.ts                     the workflow: security check → input reduction → log; result reduction → log
+    gateway.ts                     the workflow: security check → log; result reduction → log
     tool-security/
       index.ts                     checkToolSecurity()
       rules.ts                     managing rules and rule groups
@@ -62,11 +62,10 @@ src/
       matching/                    rule engine, wildcard patterns, command splitting, rule suggestions
       rule-files/                  rule file format, import / export / defaults
     reduction/
-      index.ts                     rewriteToolInput() / reduceToolResult()
+      index.ts                     reduceToolResult()
       pipeline.ts                  runs the strategies that are on over a result
-      options.ts                   every strategy's state and savings
+      options.ts                   output strategy states and savings
       strategies/                  one file per output strategy (ansi.ts, test-output.ts, paging.ts, ...)
-      input-strategies/            one file per input strategy (read-limit.ts, grep-limit.ts, ...)
       adapters/                    one file per tool result shape (shell.ts, read.ts, mcp.ts, ...)
     activity/events.ts             event sinks (e.g. a central audit log later)
     settings/                      enforcement mode

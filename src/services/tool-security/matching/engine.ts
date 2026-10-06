@@ -25,7 +25,14 @@ export interface PartResult {
 export type Verdict =
   | { decision: "allow"; subject: Subject | null; parts: PartResult[] }
   | { decision: "deny"; reason: "rule"; rule: Rule; matched: string | null; subject: Subject | null; parts: PartResult[] }
-  | { decision: "deny"; reason: "unlisted"; uncovered: string[]; subject: Subject | null; parts: PartResult[] };
+  | {
+      decision: "deny";
+      reason: "unlisted";
+      uncovered: string[];
+      subject: Subject | null;
+      parts: PartResult[];
+      evaluatedToolName?: string;
+    };
 
 interface CompiledRule {
   rule: Rule;
@@ -50,6 +57,23 @@ function compile(rules: Rule[]): CompiledRule[] {
  * 3. Otherwise -> deny as unlisted.
  */
 export function evaluate(call: CallContext, rules: Rule[]): Verdict {
+  const paths = (call.toolInput as { file_paths?: unknown } | null)?.file_paths;
+  if (call.toolName === "MultiEdit" && Array.isArray(paths) && paths.length) {
+    const verdicts = paths.map((file_path) => evaluate({ ...call, toolInput: { file_path } }, rules));
+    const deleted = (call.toolInput as { deleted_paths?: unknown }).deleted_paths;
+    if (Array.isArray(deleted)) {
+      verdicts.unshift(
+        ...deleted.map((file_path) => {
+          const v = evaluate({ ...call, toolName: "DeleteFile", toolInput: { file_path } }, rules);
+          return v.decision === "deny" && v.reason === "unlisted" ? { ...v, evaluatedToolName: "DeleteFile" } : v;
+        })
+      );
+    }
+    // Inspect every affected path; a deny rule wins over an unlisted path.
+    const denied =
+      verdicts.find((v) => v.decision === "deny" && v.reason === "rule") ?? verdicts.find((v) => v.decision === "deny");
+    return denied ?? { decision: "allow", subject: verdicts[0].subject, parts: verdicts.flatMap((v) => v.parts) };
+  }
   const compiled = compile(rules);
   const denies = compiled.filter((r) => r.rule.effect === "deny");
   const allows = compiled.filter((r) => r.rule.effect === "allow");

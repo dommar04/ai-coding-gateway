@@ -476,3 +476,81 @@ test("export writes every rule as an object", async () => {
   assert.ok(entries.length > 100);
   assert.ok(entries.every((e) => typeof e === "object" && e !== null && "rule" in e));
 });
+
+test("dashboard shows captured Codex prompt text with its tool calls and no invented API usage", async () => {
+  const { recordPrompt } = await import("../src/storage/tables/prompts");
+  const promptId = "codex:dashboard-session:dashboard-turn";
+  const rawText =
+    '<in-app-browser-context source="ambient-ui-state">Browser context</in-app-browser-context>\n\n## My request:\nread the README';
+  recordPrompt({ promptId, sessionId: "dashboard-session", integration: "codex", text: rawText });
+  db.insertCall({
+    toolUseId: "codex:dashboard-session:call",
+    sessionId: "dashboard-session",
+    promptId,
+    integration: "codex",
+    project: dir,
+    toolName: "Bash",
+    toolInput: { command: "cat README.md" },
+    decision: "allowed",
+  });
+  const response = await api("GET", "/api/prompts?limit=100");
+  assert.equal(response.status, 200);
+  const groups = (await response.json()) as Array<{
+    promptId: string;
+    text: string;
+    integration: string;
+    calls: unknown[];
+    usage: unknown;
+  }>;
+  const prompt = groups.find((g) => g.promptId === promptId)!;
+  assert.equal(prompt.text, "read the README");
+  const { getPrompt } = await import("../src/storage/tables/prompts");
+  assert.equal(getPrompt(promptId)?.text, rawText);
+  assert.equal(prompt.integration, "codex");
+  assert.equal(prompt.calls.length, 1);
+  assert.equal(prompt.usage, null);
+});
+
+test("merging default comments preserves user notes, disabled rules and groups", async () => {
+  const { resetToDefaults, previewDefaults } = await import("../src/services/tool-security/rule-files/rule-sets");
+  const table = await import("../src/storage/tables/tool-rules");
+  const rules = table.listRules();
+  const empty = rules.find((r) => r.source === "default" && r.rule === "Shell(git *)")!;
+  const custom = rules.find((r) => r.source === "default" && r.rule === "Shell(rm *)")!;
+  db.getDb().prepare("UPDATE tool_rules SET note = NULL, enabled = 0 WHERE id = ?").run(empty.id);
+  db.getDb().prepare("UPDATE tool_rules SET note = 'My own explanation' WHERE id = ?").run(custom.id);
+  assert.ok((previewDefaults().newComments ?? 0) >= 1);
+  const merged = resetToDefaults("merge");
+  assert.ok((merged.commentsFilled ?? 0) >= 1);
+  const after = table.getRule(empty.id)!;
+  assert.ok(after.note);
+  assert.equal(after.enabled, 0);
+  assert.equal(after.group_id, empty.group_id);
+  assert.equal(table.getRule(custom.id)!.note, "My own explanation");
+  assert.equal(resetToDefaults("merge").commentsFilled, 0);
+});
+
+test("captured prompts without calls are visible, filterable and reachable by encoded IDs", async () => {
+  const { recordPrompt } = await import("../src/storage/tables/prompts");
+  for (const integration of ["claude", "codex"]) {
+    const promptId = `${integration}:standalone:turn`;
+    recordPrompt({
+      promptId,
+      sessionId: "standalone",
+      integration,
+      text: "hello with no tool call",
+      project: join(dir, "prompt-only"),
+    });
+    const response = await api("GET", `/api/prompts/${encodeURIComponent(promptId)}`);
+    assert.equal(response.status, 200);
+    const group = (await response.json()) as { text: string; calls: unknown[]; callCount: number; integration: string };
+    assert.equal(group.text, "hello with no tool call");
+    assert.equal(group.callCount, 0);
+    assert.deepEqual(group.calls, []);
+    assert.equal(group.integration, integration);
+  }
+  const filtered = (await (
+    await api("GET", `/api/prompts?project=${encodeURIComponent(join(dir, "prompt-only"))}`)
+  ).json()) as unknown[];
+  assert.equal(filtered.length, 2);
+});

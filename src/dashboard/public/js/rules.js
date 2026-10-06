@@ -153,7 +153,7 @@ function groupBody(g, allGroups, editing) {
     }
     ${
       g.shown.length
-        ? `<div class="table-wrap"><table class="rg-rules"><tbody>${rows}</tbody></table></div>`
+        ? `<div class="table-wrap"><table class="rg-rules"><thead><tr><th>Effect</th><th>Rule</th><th>Comment</th><th>Source</th><th>Enabled</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`
         : `<div class="empty compact">${g.rules.length ? "No rules match the filter." : "No rules in this group yet. Add the first one below."}</div>`
     }
     ${hidden ? `<div class="rg-hidden muted small">${hidden} more rule${hidden === 1 ? "" : "s"} hidden by the filter.</div>` : ""}
@@ -428,11 +428,13 @@ function renderImport(keepPreview) {
   if (mode === "merge") {
     const newGroups = p.groups.filter((g) => !g.exists).length;
     summary.className = "import-summary";
-    summary.textContent = p.newRules
-      ? `Adds ${p.newRules} rule${p.newRules === 1 ? "" : "s"}${newGroups ? ` and ${newGroups} group${newGroups === 1 ? "" : "s"}` : ""}. Nothing is removed.`
-      : "You already have every rule in this file.";
+    const comments = p.newComments ? ` Fills ${p.newComments} missing default rule comments.` : "";
+    summary.textContent =
+      (p.newRules
+        ? `Adds ${p.newRules} rule${p.newRules === 1 ? "" : "s"}${newGroups ? ` and ${newGroups} group${newGroups === 1 ? "" : "s"}` : ""}. Nothing is removed.`
+        : "You already have every rule in this file.") + comments;
     $("#import-apply").textContent = imp.source === "defaults" ? "Add missing defaults" : "Add rules";
-    $("#import-apply").disabled = !p.newRules && !newGroups;
+    $("#import-apply").disabled = !p.newRules && !newGroups && !p.newComments;
     $("#import-apply").classList.remove("danger");
   } else {
     summary.className = "import-summary warn";
@@ -498,7 +500,7 @@ $("#import-apply").addEventListener(
       dialog.close();
       toast(
         mode === "merge"
-          ? `Added ${r.added} rules${r.addedGroups ? ` and ${r.addedGroups} groups` : ""}`
+          ? `Added ${r.added} rules${r.addedGroups ? ` and ${r.addedGroups} groups` : ""}${r.commentsFilled ? ` · filled ${r.commentsFilled} comments` : ""}`
           : `Replaced all rules: now ${r.total} rules in ${r.groups} groups`
       );
       await loadRules();

@@ -2,6 +2,7 @@
 // their own payloads into these types; the services only ever see these.
 
 export interface ToolCall {
+  integration?: string;
   toolUseId: string;
   toolName: string;
   toolInput: unknown;

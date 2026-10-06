@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { OUTPUT_STRATEGIES, PAGING, type OutputContext, type StrategyState } from "../src/services/reduction/strategies";
 import { reduceResult, type ReadCache } from "../src/services/reduction/pipeline";
 import { adapterFor } from "../src/services/reduction/adapters";
-import { rewriteInput, READ_LIMIT } from "../src/services/reduction/input-strategies";
 import { readTranscript, cleanPromptText } from "../src/integrations/claude/transcript";
 
 const spillDir = mkdtempSync(join(tmpdir(), "apichap-spill-"));
@@ -225,33 +224,6 @@ test("MCP text blocks are reduced, image blocks kept", () => {
 test("visible tokens reflect what Claude sees", () => {
   assert.equal(adapterFor("Write").visibleTokens({ filePath: "C:/a.ts", content: "x".repeat(100_000) }) < 50, true);
   assert.equal(adapterFor("Bash").visibleTokens({ stdout: "x".repeat(400), stderr: "" }), 100);
-});
-
-test("input rewrites: grep head_limit, git log -n, npm quiet, read limit", () => {
-  const on = () => true;
-  assert.deepEqual(rewriteInput("Grep", { pattern: "x", output_mode: "content" }, ".", on)?.input, {
-    pattern: "x",
-    output_mode: "content",
-    head_limit: 250,
-  });
-  assert.equal(rewriteInput("Grep", { pattern: "x" }, ".", on), null);
-  assert.equal(rewriteInput("Bash", { command: "git log --oneline" }, ".", on)?.input.command, "git log -n 50 --oneline");
-  assert.equal(rewriteInput("Bash", { command: "git log -n 5" }, ".", on), null);
-  assert.equal(rewriteInput("Bash", { command: "git log main..feature" }, ".", on), null);
-  assert.equal(rewriteInput("Bash", { command: "npm ci" }, ".", on)?.input.command, "npm ci --no-audit --no-fund --no-progress");
-  assert.equal(rewriteInput("Bash", { command: "npm ci && npm test" }, ".", on), null);
-  assert.equal(
-    rewriteInput("Bash", { command: "git log" }, ".", () => false),
-    null
-  );
-
-  const dir = mkdtempSync(join(tmpdir(), "apichap-read-"));
-  const big = join(dir, "big.txt");
-  writeFileSync(big, Array.from({ length: 5000 }, (_, i) => `line ${i} ${"pad".repeat(5)}`).join("\n"));
-  const r = rewriteInput("Read", { file_path: big }, dir, on);
-  assert.equal(r?.input.limit, READ_LIMIT);
-  assert.match(r!.notes[0], /lines 1–1000 of 5,000/);
-  assert.equal(rewriteInput("Read", { file_path: big, offset: 10 }, dir, on), null);
 });
 
 test("transcript: prompt text and deduplicated API usage per prompt", () => {

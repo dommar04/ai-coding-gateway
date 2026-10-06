@@ -30,11 +30,11 @@ after(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-test("a fresh database runs all migrations once and starts with the default rules in monitor mode", () => {
+test("a fresh database runs all migrations once and starts with the default rules in enforce mode", () => {
   const version = (db.getDb().prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
   assert.equal(version, migrations.MIGRATIONS.length);
   assert.ok(rules.countRules() > 100);
-  assert.equal(settings.getSetting("mode"), "monitor");
+  assert.equal(settings.getSetting("mode"), "enforce");
   assert.ok(Number(settings.getSetting("defaults_version")) > 0);
   // Every default rule sits in its group.
   assert.ok(groups.countGroups() > 10);
