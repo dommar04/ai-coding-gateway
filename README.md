@@ -48,8 +48,6 @@ npx apichap-ai-coding-gateway dashboard
   <em>Code with Claude Code while watching Claude´s tool calls live and allow rules across your projects.</em>
 </p>
 
----
-
 ## How it works
 
 The gateway uses hooks in Claude Code and Codex to see tool calls before they run and results after they finish.
