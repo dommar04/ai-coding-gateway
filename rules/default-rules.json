@@ -216,6 +216,8 @@
         { "rule": "update_plan", "note": "Create or update the implementation plan." },
         { "rule": "request_user_input", "note": "Ask the user for a decision or clarification." },
         { "rule": "request_user_input_async", "note": "Ask for input while independent work continues." },
+        { "rule": "mcp__codex_app__load_workspace_dependencies", "note": "Ask for input while independent work continues." },
+        { "rule": "image_genimagegen", "note": "Generate images." },
         { "rule": "spawn_agent", "note": "Start a Codex sub-agent; its tool calls remain subject to rules." },
         { "rule": "send_input", "note": "Send instructions to a Codex sub-agent." },
         { "rule": "wait", "note": "Wait for a Codex sub-agent to finish." },

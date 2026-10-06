@@ -13,15 +13,21 @@ const tempSettings = (content?: unknown) => {
 const read = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 test("hook command is a pinned, offline-first npx call", () => {
-  assert.equal(hookCommand("pre"), `npx -y --prefer-offline apichap-ai-coding-gateway@${packageVersion()} hook pre`);
-  assert.equal(hookCommand("post", { installed: true }), "apichap-gateway hook post");
+  assert.equal(
+    hookCommand("pre", { integration: "claude" }),
+    `npx -y --prefer-offline apichap-ai-coding-gateway@${packageVersion()} hook pre --agent claude`
+  );
+  assert.equal(hookCommand("post", { integration: "claude", installed: true }), "apichap-gateway hook post --agent claude");
 });
 
 test("--local hooks run exactly the given copy: source with tsx, build with node", () => {
-  assert.equal(hookCommand("pre", { localEntry: "C:\\dev\\gw\\src\\main.ts" }), 'npx tsx "C:/dev/gw/src/main.ts" hook pre');
   assert.equal(
-    hookCommand("session", { localEntry: "/home/me/gw/dist/main.js" }),
-    'node "/home/me/gw/dist/main.js" hook session'
+    hookCommand("pre", { integration: "claude", localEntry: "C:\\dev\\gw\\src\\main.ts" }),
+    'npx tsx "C:/dev/gw/src/main.ts" hook pre --agent claude'
+  );
+  assert.equal(
+    hookCommand("session", { integration: "claude", localEntry: "/home/me/gw/dist/main.js" }),
+    'node "/home/me/gw/dist/main.js" hook session --agent claude'
   );
 
   // Switching between local and package hooks replaces the previous ones.

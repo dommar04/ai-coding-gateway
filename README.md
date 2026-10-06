@@ -1,11 +1,13 @@
 
+<p align="center">
+  <img src="assets/readme-hero-v3.gif" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
+</p>
 
 <h1 align="center">
-  <img src="src/dashboard/public/assets/apichap-mark.png" alt="" width="44" align="center">
+  <img src="src/dashboard/public/assets/apichap-mark.png" alt="" width="44" align="middle">
   apichap AI Coding Gateway
 </h1>
 
-----
 <h3 align="center">Tracks every Tool Call. Denies prohibited Tool Calls. Reduces unused Context from Tool Calls.</h3>
 
 <p align="center">
@@ -19,7 +21,7 @@
 
 ## Install
 
-Install the AI coding gateway hooks to Claude Code or Codex. 
+Add a local gateway that checks Claude Code and Codex tool calls against your rules, blocks prohibited actions, and shortens supported tool output to save context.
 
 ### Claude Code
 

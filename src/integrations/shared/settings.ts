@@ -59,8 +59,8 @@ export interface HookCommandOptions {
   localEntry?: string;
 }
 
-export function hookCommand(phase: Phase, options: HookCommandOptions = {}): string {
-  const suffix = options.integration ? ` --agent ${options.integration}` : "";
+export function hookCommand(phase: Phase, options: HookCommandOptions & { integration: string }): string {
+  const suffix = ` --agent ${options.integration}`;
   if (options.localEntry) {
     const entry = options.localEntry.replace(/\\/g, "/");
     return `${entry.endsWith(".ts") ? "npx tsx" : "node"} "${entry}" hook ${phase}${suffix}`;
@@ -126,7 +126,7 @@ export function installHooks(
     matcher?: string;
     capturePrompts?: boolean;
     statusMessages?: Record<string, string>;
-  } & HookCommandOptions
+  } & HookCommandOptions & { integration: string }
 ): InstallResult {
   const path = options.path;
   const settings = readSettings(path);

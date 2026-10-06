@@ -10,7 +10,7 @@ const dir = mkdtempSync(join(tmpdir(), "apichap-hooks-"));
 const cli = join(__dirname, "..", "src", "main.ts");
 
 function hook(phase: string, input: unknown): Record<string, unknown> {
-  const r = spawnSync(process.execPath, ["--import", "tsx", cli, "hook", phase], {
+  const r = spawnSync(process.execPath, ["--import", "tsx", cli, "hook", phase, "--agent", "claude"], {
     input: JSON.stringify(input),
     env: { ...process.env, APICHAP_GATEWAY_DIR: dir, APICHAP_GATEWAY_MODE: "enforce" },
     encoding: "utf8",
