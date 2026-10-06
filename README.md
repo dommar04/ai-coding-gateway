@@ -7,7 +7,9 @@
   <img src="assets/hero_image.png" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
 </p>
 
-<h3 align="center">Tracks every Tool Call. Denies prohibited Tool Calls. Reduces unused Context from Tool Calls.</h3>
+<h3 align="center">Tracks every Tool Call. </h3>
+<h3 align="center">Denies prohibited Tool Calls.</h3>
+<h3 align="center">Reduces unused Context from Tool Calls.</h3>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/apichap-ai-coding-gateway"><img src="https://img.shields.io/npm/v/apichap-ai-coding-gateway?color=4b8e7a&label=npm" alt="npm version"></a>
