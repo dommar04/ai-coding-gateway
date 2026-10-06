@@ -4,7 +4,7 @@ Notable changes for each release are listed here. This changelog follows [Keep a
 
 ## 1.0.0
 
-- **Codex support:** Support for Codex. 
+- **Codex support:** Support for Codex.
 - **Rules and protection:** Updated default rules cover both integrations and protect sensitive files and gateway settings. Updating defaults adds missing descriptions without changing users’ notes or enabled settings.
 - **Dashboard:** Live activity, prompt details, rule management and token-savings settings are available in one local dashboard.
 - **Token savings:** Reduce tool-result output where supported. Codex currently supports tracking and enforcement; output reduction is available for Claude Code.

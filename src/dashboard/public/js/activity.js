@@ -146,13 +146,12 @@ export function renderGrouped() {
       const text = g.text
         ? `<div class="pg-text">${esc(g.text)}</div>`
         : '<div class="pg-text none">Prompt text not available</div>';
-      const body =
-        open
-          ? g.callCount === 0
-            ? `<div class="pg-body pg-empty" id="prompt-body-${index}">No tool call yet.</div>`
-            : `<div class="pg-body" id="prompt-body-${index}"><table><thead><tr><th>Time</th><th>Tool</th><th>Call</th><th>Tokens</th><th>Decision</th><th>Status</th></tr></thead>
+      const body = open
+        ? g.callCount === 0
+          ? `<div class="pg-body pg-empty" id="prompt-body-${index}">No tool call yet.</div>`
+          : `<div class="pg-body" id="prompt-body-${index}"><table><thead><tr><th>Time</th><th>Tool</th><th>Call</th><th>Tokens</th><th>Decision</th><th>Status</th></tr></thead>
         <tbody>${calls.map(callRow).join("")}</tbody></table></div>`
-          : `<div id="prompt-body-${index}" hidden></div>`;
+        : `<div id="prompt-body-${index}" hidden></div>`;
       return `<div class="pg ${open ? "open" : ""} ${g._new ? "new" : ""}" data-pid="${esc(g.promptId)}">
       <div class="pg-header">
       <button class="pg-head" aria-expanded="${open}" aria-controls="prompt-body-${index}">
@@ -183,9 +182,7 @@ export function renderCalls() {
   renderGrouped();
   for (const c of state.calls.values()) c._new = false;
   $("#calls-empty").hidden = state.calls.size > 0;
-  $("#calls-count").textContent =
-    `${state.prompts.size} prompts · ` +
-    `Showing ${rows.length} of ${state.calls.size} calls`;
+  $("#calls-count").textContent = `${state.prompts.size} prompts · ` + `Showing ${rows.length} of ${state.calls.size} calls`;
 }
 
 // ---------- project filter ----------

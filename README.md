@@ -1,12 +1,11 @@
-
-<p align="center">
-  <img src="assets/readme-hero-v3.gif" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
-</p>
-
 <h1 align="center">
-  <img src="src/dashboard/public/assets/apichap-mark.png" alt="" width="44" align="middle">
+  <img src="src/dashboard/public/assets/apichap-mark.png" alt="" width="36" style="vertical-align: middle">
   apichap AI Coding Gateway
 </h1>
+
+<p align="center">
+  <img src="assets/hero_image.png" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
+</p>
 
 <h3 align="center">Tracks every Tool Call. Denies prohibited Tool Calls. Reduces unused Context from Tool Calls.</h3>
 
@@ -53,21 +52,40 @@ npx apichap-ai-coding-gateway dashboard
 
 ## How it works
 
-The gateway uses hooks in Claude Code and Codex to see tool calls before they run and results after they finish. 
+The gateway uses hooks in Claude Code and Codex to see tool calls before they run and results after they finish.
 It checks each call against your rules, records what happened, and can shorten results before they return to the conversation. The agent's own permission checks still apply; the gateway adds restrictions.
 
 ```mermaid
 flowchart LR
-    A[Agent requests a tool] --> B[Gateway checks the call]
-    B --> C{Mode and rules}
-    C -->|Allowed| D[Tool runs]
-    C -->|Denied or unlisted · enforce| E[Call is blocked with a reason]
-    C -->|Would be denied · monitor| D
-    C -->|Rules skipped · off| D
-    D --> F[Gateway records the result]
-    F --> G[Shorten result when supported and enabled]
-    G --> H[Agent continues]
-    E --> H
+    subgraph Agents[AI coding agents]
+        Claude[Claude Code]
+        Codex[Codex]
+    end
+
+    subgraph Gateway[apichap gateway]
+        Pre[Hook interceptor<br/>before tool call]
+        Rules[Rule checks and enforcement]
+        Post[Hook interceptor<br/>after tool result]
+        Activity[Activity tracking]
+        Reduce[Result reduction<br/>when enabled and supported]
+    end
+
+    Tool[Agent tool]
+    Blocked[Call blocked with a reason]
+
+    Claude -->|Tool call| Pre
+    Codex -->|Tool call| Pre
+    Pre --> Rules
+    Rules -->|Allowed, or monitor/off mode| Tool
+    Rules -->|Denied in enforce mode| Blocked
+    Rules -->|Record decision| Activity
+    Blocked -->|Denial| Claude
+    Blocked -->|Denial| Codex
+    Tool -->|Tool result| Post
+    Post --> Activity
+    Post --> Reduce
+    Reduce --> Claude
+    Reduce --> Codex
 ```
 
 In **monitor** mode, the gateway reports calls that rules would deny but lets them run. In **off** mode, it skips rule checks. **Enforce** blocks denied and unlisted calls.
@@ -154,11 +172,11 @@ The dashboard's **Import…** and **Export** actions let you move rules between 
 
 Choose the mode in the dashboard sidebar or run `apichap-gateway mode <mode>`:
 
-| Mode | What happens |
-| --- | --- |
+| Mode                | What happens                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
 | `enforce` (default) | Blocks calls denied by a rule and calls no allow rule covers. If the gateway fails, the call is blocked. |
-| `monitor` | Checks and records calls, including ones that would be denied, but lets them run. |
-| `off` | Skips rule checks and records calls. |
+| `monitor`           | Checks and records calls, including ones that would be denied, but lets them run.                        |
+| `off`               | Skips rule checks and records calls.                                                                     |
 
 The selected mode is saved and remembered after a restart. `APICHAP_GATEWAY_MODE` overrides the saved setting when set.
 
@@ -217,6 +235,7 @@ For the project layout and contribution guidelines, see [CONTRIBUTING.md](CONTRI
 ### Teams and enterprise (roadmap)
 
 This version stores rules and activity locally and is designed for individual developers. Shared team rules and a central audit log are planned.
+
 ### License
 
 [GNU General Public License v3.0](LICENSE)

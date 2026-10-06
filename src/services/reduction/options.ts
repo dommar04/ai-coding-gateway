@@ -19,9 +19,7 @@ export interface StrategyInfo {
 }
 
 const STATES: StrategyState[] = ["on", "off"];
-const ALL = [
-  ...OUTPUT_STRATEGIES.map((s) => ({ ...s, kind: "output" as const, states: STATES })),
-];
+const ALL = [...OUTPUT_STRATEGIES.map((s) => ({ ...s, kind: "output" as const, states: STATES }))];
 
 const SETTING_PREFIX = "reduction:";
 
