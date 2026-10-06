@@ -1,8 +1,8 @@
 import type { ToolCall, ToolResult } from "../entities/tool-call";
 import { logError } from "../helpers/errors";
 import { emitEvent } from "./activity/events";
-import { completeCall, getInputRewrite, insertCall } from "../storage/tables/tool-calls";
-import { forgetContext, reduceToolResult, rewriteToolInput, type ReduceResult } from "./reduction";
+import { completeCall, insertCall } from "../storage/tables/tool-calls";
+import { forgetContext, reduceToolResult, type ReduceResult } from "./reduction";
 import { inputTokens } from "./reduction/adapters";
 import { effectiveMode, getMode, modeOverride } from "./settings";
 import { checkToolSecurity, type SecurityCheck } from "./tool-security";
@@ -11,8 +11,7 @@ import { gatewayErrorMessage } from "./tool-security/messages";
 // The gateway workflow, independent of any agent:
 //
 //   before a tool call:  1. tool security (unless mode is "off")   → may block the call
-//                        2. input reduction (strategies set to on)  → may shrink the call
-//                        3. log the call
+//                        2. log the call
 //   after a tool call:   1. result reduction                        → may shrink the result
 //                        2. log result and token figures
 //   context reset:       forget what the agent had already read
@@ -22,18 +21,18 @@ import { gatewayErrorMessage } from "./tool-security/messages";
 export interface BeforeToolCall {
   /** Set when the call must not run: the message for the agent. */
   block?: string;
-  /** Set when the call should run with a smaller input. */
-  updatedInput?: Record<string, unknown>;
 }
 
 export interface AfterToolCall {
   /** Set when the agent should get a shortened result (same shape as the original). */
   updatedResponse?: unknown;
-  /** Extra notes for the agent, e.g. "this Read was limited to 1,000 lines". */
-  additionalContext?: string;
 }
 
 const ALLOWED: SecurityCheck = { decision: "allowed", ruleId: null, message: null };
+
+export interface GatewayCapabilities {
+  replaceOutput?: boolean;
+}
 
 export function beforeToolCall(call: ToolCall): BeforeToolCall {
   const mode = effectiveMode();
@@ -45,13 +44,10 @@ export function beforeToolCall(call: ToolCall): BeforeToolCall {
     return { block: check.message ?? gatewayErrorMessage() };
   }
 
-  // 2. Input reduction
-  const rewrite = rewriteToolInput(call);
-
-  // 3. Log
-  record(call, check, rewrite ? { applied: rewrite.applied, notes: rewrite.notes, original: call.toolInput } : undefined);
+  // 2. Log
+  record(call, check);
   // No "allow" is ever returned: the agent's own permission prompts still apply. The gateway only tightens.
-  return rewrite ? { updatedInput: rewrite.input } : {};
+  return {};
 }
 
 /**
@@ -71,17 +67,18 @@ export function beforeToolCallFailed(err: unknown): BeforeToolCall {
   return mode === "enforce" ? { block: gatewayErrorMessage() } : {};
 }
 
-export function afterToolCall(call: ToolCall, result: ToolResult): AfterToolCall {
+export function afterToolCall(call: ToolCall, result: ToolResult, capabilities: GatewayCapabilities = {}): AfterToolCall {
   // 1. Result reduction. A broken strategy must never cost the agent its tool output.
   let reduced: ReduceResult | null = null;
   try {
-    reduced = reduceToolResult(call, result.response);
+    reduced = reduceToolResult(call, result.response, capabilities.replaceOutput !== false);
   } catch (err) {
     logError("reduce", err);
   }
 
   // 2. Log
   completeCall({
+    integration: call.integration,
     toolUseId: call.toolUseId,
     sessionId: call.sessionId,
     project: call.cwd,
@@ -100,10 +97,8 @@ export function afterToolCall(call: ToolCall, result: ToolResult): AfterToolCall
   });
   emitEvent({ type: "post", toolUseId: call.toolUseId, sessionId: call.sessionId, toolName: call.toolName });
 
-  const notes = getInputRewrite(call.toolUseId)?.notes ?? [];
   return {
     ...(reduced?.response !== undefined ? { updatedResponse: reduced.response } : {}),
-    ...(notes.length ? { additionalContext: notes.join("\n") } : {}),
   };
 }
 
@@ -111,8 +106,9 @@ export function onContextReset(sessionId: string): void {
   forgetContext(sessionId);
 }
 
-function record(call: ToolCall, check: SecurityCheck, inputRewrite?: unknown): void {
+function record(call: ToolCall, check: SecurityCheck): void {
   insertCall({
+    integration: call.integration,
     toolUseId: call.toolUseId,
     sessionId: call.sessionId,
     project: call.cwd,
@@ -124,7 +120,6 @@ function record(call: ToolCall, check: SecurityCheck, inputRewrite?: unknown): v
     inputTokens: inputTokens(call.toolInput),
     decision: check.decision,
     ruleId: check.ruleId,
-    inputRewrite,
   });
   emitEvent({
     type: "pre",

@@ -1,7 +1,7 @@
 import { transaction } from "../../../storage/database";
 import { getSetting, setSetting } from "../../../storage/tables/settings";
 import { countGroups, deleteAllGroups, getGroupByKey, insertGroup, listGroups } from "../../../storage/tables/rule-groups";
-import { countRules, deleteAllRules, insertRule, listRules } from "../../../storage/tables/tool-rules";
+import { countRules, deleteAllRules, fillDefaultRuleNote, insertRule, listRules } from "../../../storage/tables/tool-rules";
 import { currentUser } from "../../../helpers/user";
 import {
   BUILTIN_GROUPS,
@@ -18,6 +18,7 @@ import {
 export type ImportMode = "replace" | "merge";
 
 export interface ImportResult {
+  commentsFilled?: number;
   mode: ImportMode;
   added: number;
   removed: number;
@@ -59,6 +60,7 @@ export function importRules(file: unknown, mode: ImportMode, source = "import"):
 }
 
 export interface ImportPreview {
+  newComments?: number;
   name: string | null;
   description: string | null;
   version: number | null;
@@ -111,13 +113,31 @@ export function previewImport(file: unknown): ImportPreview {
 /** Imports rules/default-rules.json and remembers its version. */
 export function resetToDefaults(mode: ImportMode): ImportResult {
   const file = loadDefaultRuleFile();
-  const result = importRules(file, mode, "default");
-  setSetting("defaults_version", String(file.version ?? 0));
-  return result;
+  return transaction(() => {
+    const result = importRules(file, mode, "default");
+    let commentsFilled = 0;
+    if (mode === "merge") {
+      for (const group of parseRuleFile(file))
+        for (const rule of group.rules) {
+          if (rule.note) commentsFilled += fillDefaultRuleNote(rule.effect, rule.rule, rule.note);
+        }
+    }
+    setSetting("defaults_version", String(file.version ?? 0));
+    return { ...result, commentsFilled };
+  });
 }
 
 export function previewDefaults(): ImportPreview {
-  return previewImport(loadDefaultRuleFile());
+  const file = loadDefaultRuleFile();
+  const defaults = new Map(
+    parseRuleFile(file)
+      .flatMap((g) => g.rules)
+      .map((r) => [`${r.effect}\n${r.rule}`, r.note])
+  );
+  const newComments = listRules().filter(
+    (r) => r.source === "default" && !r.note?.trim() && defaults.get(`${r.effect}\n${r.rule}`)
+  ).length;
+  return { ...previewImport(file), newComments };
 }
 
 export function defaultsStatus(): {

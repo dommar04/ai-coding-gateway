@@ -33,7 +33,7 @@ export interface Subject {
   shell?: "bash" | "powershell";
 }
 
-const PATH_TOOLS = new Set(["Read", "Write", "Edit", "MultiEdit", "NotebookEdit"]);
+const PATH_TOOLS = new Set(["Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "DeleteFile"]);
 /** Search tools: their subject is the folder (or file) searched, the project folder when none is given. */
 const SEARCH_TOOLS = new Set(["Grep", "Glob"]);
 const IS_WINDOWS = process.platform === "win32";
@@ -56,6 +56,10 @@ export function extractSubject(toolName: string, toolInput: unknown, cwd: string
     if (typeof raw === "string") {
       return { kind: "path", value: normalizePath(resolve(cwd, raw)), caseInsensitive: IS_WINDOWS };
     }
+  }
+
+  if (toolName === "view_image" && typeof input.path === "string") {
+    return { kind: "path", value: normalizePath(resolve(cwd, input.path)), caseInsensitive: IS_WINDOWS };
   }
 
   if (SEARCH_TOOLS.has(toolName)) {
@@ -126,9 +130,9 @@ function expandPlaceholders(pattern: string, kind: SubjectKind, ctx: MatchContex
 /** Tool groups usable in rules: Shell(git *) covers Bash and PowerShell, and so on. */
 export const TOOL_GROUPS: Record<string, string[]> = {
   Shell: ["Bash", "PowerShell"],
-  FileRead: ["Read", "Grep", "Glob"],
+  FileRead: ["Read", "Grep", "Glob", "view_image"],
   FileEdit: ["Edit", "Write", "MultiEdit", "NotebookEdit"],
-  File: ["Read", "Grep", "Glob", "Edit", "Write", "MultiEdit", "NotebookEdit"],
+  File: ["Read", "Grep", "Glob", "view_image", "Edit", "Write", "MultiEdit", "NotebookEdit"],
 };
 
 export function toolMatches(rule: ParsedRule, toolName: string): boolean {

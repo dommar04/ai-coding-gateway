@@ -22,11 +22,6 @@
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" />
       </symbol>
-      <symbol id="i-pause" viewBox="0 0 24 24">
-        <rect x="6" y="5" width="4" height="14" rx="1" />
-        <rect x="14" y="5" width="4" height="14" rx="1" />
-      </symbol>
-      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z" /></symbol>
       <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
       <symbol id="i-feather" viewBox="0 0 24 24">
@@ -121,7 +116,7 @@
           <div class="page-head">
             <div>
               <h1>Activity</h1>
-              <p>Every tool call from Claude Code sessions on this machine, grouped by the prompt that triggered it.</p>
+              <p>Tool calls from connected agent sessions on this machine, grouped by the prompt that triggered it.</p>
             </div>
           </div>
           <div class="card">
@@ -140,16 +135,12 @@
                 <option value="">All decisions</option>
                 <option value="allowed">Allowed</option>
                 <option value="denied">Denied</option>
-                <option value="would_deny">Denied</option>
               </select>
-              <button class="btn" id="pause">
-                <svg class="icon"><use href="#i-pause" /></svg><span>Pause</span>
-              </button>
             </div>
             <div id="grouped-view" class="groups"></div>
             <div class="empty" id="calls-empty" hidden>
               <svg class="icon"><use href="#i-activity" /></svg>
-              <div>No tool calls yet. Use Claude Code and they appear here live.</div>
+              <div>No tool calls yet. Use a connected agent and its hooked calls appear here live.</div>
             </div>
           </div>
           <div class="muted small" id="calls-count"></div>
@@ -161,8 +152,9 @@
             <div>
               <h1>Token savings</h1>
               <p>
-                Each option shortens tool results before Claude sees them. <b>On</b> changes what Claude gets, <b>Off</b> leaves
-                it as it is.
+                Each option shortens tool results where the integration supports replacement. <b>On</b> changes what the agent
+                gets, <b>Off</b> leaves it as it is. Codex currently supports tracking and enforcement; reductions apply to Claude
+                Code.
               </p>
             </div>
           </div>
@@ -318,6 +310,14 @@
           >
         </div>
       </div>
+    </dialog>
+    <dialog class="modal prompt-dialog" id="prompt-dialog" aria-labelledby="prompt-title" aria-describedby="prompt-meta">
+      <div class="modal-head">
+        <strong id="prompt-title">Prompt Detail</strong>
+        <button class="btn sm" id="prompt-close" type="button" autofocus>Close</button>
+      </div>
+      <div class="prompt-meta" id="prompt-meta"></div>
+      <div class="prompt-content" id="prompt-content" tabindex="0" aria-label="Full prompt"></div>
     </dialog>
     <dialog class="modal" id="allow-dialog" aria-labelledby="allow-title">
       <div class="modal-head">

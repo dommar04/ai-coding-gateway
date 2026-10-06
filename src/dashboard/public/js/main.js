@@ -1,7 +1,7 @@
 // Entry point: navigation, sidebar, live stream, startup.
 import { $, $$, api, guard, state, toast, token } from "./core.js";
 import { fmtTok, pct } from "./format.js";
-import { loadActivity, renderCalls, renderProjectOptions, upsertCalls } from "./activity.js";
+import { loadActivity, renderCalls, renderProjectOptions, setPrompts, upsertCalls } from "./activity.js";
 import { loadStrategies } from "./savings.js";
 import { loadRules } from "./rules.js";
 
@@ -47,7 +47,7 @@ $$("#modes button").forEach((b) =>
       if (b.dataset.mode === state.stats?.mode) return;
       if (
         b.dataset.mode === "enforce" &&
-        !confirm("Switch to Enforce? Denied and unlisted tool calls will be denied in every Claude Code session.")
+        !confirm("Switch to Enforce? Denied and unlisted tool calls will be denied in every connected agent session.")
       )
         return;
       await api("PUT", "/api/mode", { mode: b.dataset.mode });
@@ -66,10 +66,12 @@ function connect() {
   es.addEventListener("error", () => ($("#conn").hidden = false));
   es.addEventListener("calls", (e) => {
     const list = JSON.parse(e.data);
-    if (state.paused) {
-      state.queued.push(...list);
-      renderCalls();
-    } else upsertCalls(list, true);
+    upsertCalls(list, true);
+  });
+  es.addEventListener("prompts", (e) => {
+    const list = JSON.parse(e.data).filter((p) => !state.project || p.project === state.project);
+    setPrompts(list);
+    renderCalls();
   });
   es.addEventListener("stats", (e) => {
     state.stats = JSON.parse(e.data);

@@ -1,7 +1,7 @@
 import { loadDefaultRuleFile, normalizeRuleFile } from "../../services/tool-security/rule-files/rule-file";
 import type { Migration } from "./types";
 
-// A new database starts with the default rules (rules/default-rules.json) in monitor mode.
+// A new database starts with the default rules (rules/default-rules.json) in enforce mode.
 // Later versions of the default rules are offered on the dashboard, never applied automatically.
 
 export const defaultRules: Migration = {
@@ -15,6 +15,6 @@ export const defaultRules: Migration = {
     for (const r of normalizeRuleFile(file)) insert.run(r.effect, r.rule, r.note, r.enabled ? 1 : 0, now);
     const setting = db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?)`);
     setting.run("defaults_version", String(file.version ?? 0));
-    setting.run("mode", "monitor");
+    setting.run("mode", "enforce");
   },
 };

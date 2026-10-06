@@ -1,9 +1,8 @@
 import { listSettings, setSetting } from "../../storage/tables/settings";
 import { addStrategySavings, listStrategyStats } from "../../storage/tables/reduction-stats";
-import { INPUT_STRATEGIES } from "./input-strategies";
 import { OUTPUT_STRATEGIES, type StrategyState } from "./strategies";
 
-// The reduction options: every output and input strategy with its on / off state
+// The reduction options: each output strategy with its on / off state
 // (settings "reduction:<id>") and what it has saved so far.
 
 export interface StrategyInfo {
@@ -11,7 +10,7 @@ export interface StrategyInfo {
   title: string;
   description: string;
   group: string;
-  kind: "output" | "input";
+  kind: "output";
   states: StrategyState[];
   state: StrategyState;
   defaultState: StrategyState;
@@ -20,10 +19,7 @@ export interface StrategyInfo {
 }
 
 const STATES: StrategyState[] = ["on", "off"];
-const ALL = [
-  ...OUTPUT_STRATEGIES.map((s) => ({ ...s, kind: "output" as const, states: STATES })),
-  ...INPUT_STRATEGIES.map((s) => ({ ...s, kind: "input" as const, states: STATES })),
-];
+const ALL = [...OUTPUT_STRATEGIES.map((s) => ({ ...s, kind: "output" as const, states: STATES }))];
 
 const SETTING_PREFIX = "reduction:";
 
