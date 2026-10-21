@@ -145,7 +145,8 @@ function highlight(text: string, spans: AiSpan[]): string {
   return out + esc(text.slice(at));
 }
 
-function describe(c: TracedChange): string {
+/** "claude-opus-5-5 · Edit · 21 Oct 2026, 11:14 UTC" (also used for the notices in pull requests). */
+export function describe(c: TracedChange): string {
   return [c.model ?? "unknown model", c.tool, time(c.at)].join(" · ");
 }
 
@@ -158,8 +159,11 @@ function time(iso: string): string {
   return `${d.getUTCDate()} ${month} ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
-function percent(part: number, whole: number): string {
-  return whole ? `${Math.round((part / whole) * 100)}%` : "0%";
+/** Rounded, but some AI never shows as "0%". */
+export function percent(part: number, whole: number): string {
+  if (!whole) return "0%";
+  const rounded = Math.round((part / whole) * 100);
+  return rounded === 0 && part > 0 ? "<1%" : `${rounded}%`;
 }
 
 const fmt = (n: number) => n.toLocaleString("en");

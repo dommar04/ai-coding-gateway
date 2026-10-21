@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { resolveRange } from "./helper/ci";
 import { checkHistory, defaultBranch, fileAtHead, newTraceFiles, rangeDiff, repoRoot, type FileDiff } from "./helper/git";
 import { renderReport, type ReportData, type ReportFile } from "./html/html";
+import { writeGitHubOutput } from "./github/github";
 import { matchFile } from "./helper/matcher";
 import { readTrace, type TracedChange } from "./helper/traces";
 
@@ -11,6 +12,7 @@ import { readTrace, type TracedChange } from "./helper/traces";
 //   2. the agent traces those commits add, and their diff
 //   3. per changed file: find the recorded AI content in the file at the head commit
 //   4. write the HTML report
+//   5. in GitHub Actions: notices next to the AI code in the pull request, and the run's summary
 // Runs entirely locally: git and the files in the checkout, no network.
 
 export interface ReportOptions {
@@ -72,6 +74,9 @@ export function runReport(options: ReportOptions = {}): ReportResult {
   mkdirSync(out, { recursive: true });
   const file = join(out, "index.html");
   writeFileSync(file, renderReport(data));
+
+  // 5. CI output
+  writeGitHubOutput(data, options.env ?? process.env);
   return { file, data };
 }
 

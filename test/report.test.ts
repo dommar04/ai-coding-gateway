@@ -12,6 +12,7 @@ import { matchFile, type AiSpan } from "../src/services/report/helper/matcher";
 import { encodeSegment, hashToken, tokenize } from "../src/services/trace/helper/hasher";
 import { renderReport, type ReportFile } from "../src/services/report/html/html";
 import { runReport } from "../src/services/report/handler";
+import { aiBlocks, notice, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
 
 const root = mkdtempSync(join(tmpdir(), "apichap-report-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -412,4 +413,60 @@ test("report: the CLI prints a summary and writes the report", () => {
   assert.match(r.stdout, /AI share:\s+50% \(2 of 4 new tokens\)/);
   assert.match(r.stdout, /Files with AI:\s+1 of 2/);
   assert.ok(existsSync(join(dir, "r", "index.html")));
+});
+
+// GitHub output
+
+const span = (line: number, change: TracedChange): AiSpan => ({ line, start: 0, end: 1, change });
+
+test("github: AI spans on neighbouring lines become one block, largest first", () => {
+  const c = traced(["x"], "2026-10-21T11:14:24Z", "claude-opus-5-5");
+  const blocks = aiBlocks([
+    reportFile({ path: "a.ts", spans: [span(3, c), span(4, c), span(10, c)] }),
+    reportFile({ path: "b.ts", spans: [span(1, c), span(2, c), span(3, c), span(4, c)] }),
+  ]);
+  assert.deepEqual(
+    blocks.map((b) => [b.path, b.line, b.endLine]),
+    [
+      ["b.ts", 1, 4],
+      ["a.ts", 3, 4],
+      ["a.ts", 10, 10],
+    ]
+  );
+  assert.equal(blocks[0].message, "claude-opus-5-5 · Edit · 21 Oct 2026, 11:14 UTC");
+});
+
+test("github: notices escape their values like GitHub requires", () => {
+  assert.equal(
+    notice({ path: "src/a,b:c.ts", line: 3, endLine: 5, message: "100% AI\nsecond model" }),
+    "::notice file=src/a%2Cb%3Ac.ts,line=3,endLine=5,title=AI-written code::100%25 AI%0Asecond model"
+  );
+});
+
+test("github: notices and the step summary are written only in GitHub Actions", () => {
+  const c = traced(["x"]);
+  const data = { ...reportData([reportFile({ spans: [span(1, c)], addedTokens: 4, aiTokens: 3 })]), subject: "f → main · #1" };
+  const summary = join(mkdtempSync(join(root, "summary-")), "summary.md");
+  const logged: string[] = [];
+  const log = console.log;
+  console.log = (line: string) => logged.push(line);
+  try {
+    writeGitHubOutput(data, {});
+    assert.deepEqual(logged, []);
+    writeGitHubOutput(data, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: summary });
+  } finally {
+    console.log = log;
+  }
+  assert.deepEqual(logged, ["::notice file=src/a.ts,line=1,endLine=1,title=AI-written code::m1 · Edit · 21 Oct 2026, 09:01 UTC"]);
+  const md = readFileSync(summary, "utf8");
+  assert.match(md, /\*\*75%\*\* of the new code was written by AI · f → main · #1/);
+  assert.match(md, /\| `src\/a.ts` \| 75% \|/);
+  assert.match(md, /goairside-report\*\* artifact/);
+});
+
+test("github: a small but present AI share shows as <1%, not 0%", () => {
+  const c = traced(["x"]);
+  const tiny = reportData([reportFile({ spans: [span(1, c)], addedTokens: 1000, aiTokens: 3 })]);
+  assert.match(stepSummary(tiny, 1), /\| `src\/a.ts` \| <1% \|/);
+  assert.match(stepSummary(tiny, 1), /\*\*<1%\*\* of the new code/);
 });
