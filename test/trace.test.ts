@@ -4,7 +4,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TraceFile } from "../src/services/trace/helper/trace-file";
-import { encodeSegment, hashToken, tokenize } from "../src/services/trace/helper/hasher";
+import { decodeSegment, encodeSegment, hashToken, tokenize, tokenizeWithPositions } from "../src/services/trace/helper/hasher";
 import { addedSeg } from "../src/services/trace/helper/diff";
 import { shellWrites } from "../src/services/trace/helper/shell-writes";
 import { textEdits, traceToolCall } from "../src/services/trace/handler";
@@ -118,6 +118,26 @@ test("tokens are hashed with FNV-1a, lower 16 bits, and packed as Base64", () =>
   const seg = encodeSegment(tokenize("const total = 0;"));
   assert.equal(seg.length, 16);
   assert.equal(Buffer.from(seg, "base64").readUInt16BE(0), hashToken("const"));
+});
+
+test("tokens with positions are the same tokens, with their hash and place in the text", () => {
+  const text = 'const größe = "x";\n  return $a;';
+  const tokens = tokenizeWithPositions(text);
+  assert.deepEqual(
+    tokens.map((t) => text.slice(t.start, t.end)),
+    tokenize(text)
+  );
+  assert.deepEqual(
+    tokens.map((t) => t.hash),
+    tokenize(text).map(hashToken)
+  );
+  assert.deepEqual(tokens[1], { hash: hashToken("größe"), start: 6, end: 11 });
+});
+
+test("a segment decodes back to its token hashes", () => {
+  const tokens = tokenize("const total = items.reduce((a, b) => a + b, 0);");
+  assert.deepEqual(decodeSegment(encodeSegment(tokens)), tokens.map(hashToken));
+  assert.deepEqual(decodeSegment(""), []);
 });
 
 // Added segments

@@ -16,4 +16,3 @@ Thumbs.db
 
 # Local Claude Code data: settings, session transcripts, notes. Never commit these.
 .claude/
-*.jsonl
