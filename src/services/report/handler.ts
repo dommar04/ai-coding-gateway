@@ -12,8 +12,9 @@ import { readTrace, type TracedChange } from "./helper/traces";
 //   2. the agent traces those commits add, and their diff
 //   3. per changed file: find the recorded AI content in the file at the head commit
 //   4. write the HTML report
-//   5. in GitHub Actions: notices next to the AI code in the pull request, and the run's summary
-// Runs entirely locally: git and the files in the checkout, no network.
+//   5. in GitHub Actions: the run's summary, and a check with one annotation per AI file in the pull request
+// Runs locally (git and the files in the checkout). The only network access is that check, to GitHub
+// itself (github/checks.ts), and only when the workflow grants `checks: write` and passes the token.
 
 export interface ReportOptions {
   base?: string;
@@ -31,7 +32,7 @@ export interface ReportResult {
   data: ReportData;
 }
 
-export function runReport(options: ReportOptions = {}): ReportResult {
+export async function runReport(options: ReportOptions = {}): Promise<ReportResult> {
   const cwd = options.cwd ?? process.cwd();
   const root = repoRoot(cwd);
 
@@ -76,7 +77,7 @@ export function runReport(options: ReportOptions = {}): ReportResult {
   writeFileSync(file, renderReport(data));
 
   // 5. CI output
-  writeGitHubOutput(data, options.env ?? process.env);
+  await writeGitHubOutput(data, range.head, options.env ?? process.env);
   return { file, data };
 }
 

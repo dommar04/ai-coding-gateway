@@ -8,6 +8,9 @@ on:
 
 permissions:
   contents: read
+  # Lets the report add a "goAirside" check that marks the AI code in "Files changed".
+  # Without it, the report still writes the summary and the artifact.
+  checks: write
 
 jobs:
   report:
@@ -24,6 +27,9 @@ jobs:
       - run: npm ci
       - name: AI change report
         run: npx tsx src/main.ts report --out goairside-report
+        env:
+          # Steps don't get the token automatically; the report uses it only for the check (to GitHub).
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@v4
         with:
           name: goairside-report

@@ -1,60 +1,67 @@
 import { appendFileSync } from "node:fs";
 import type { ReportData, ReportFile } from "../html/html";
-import { describe, percent } from "../html/html";
+import { percent } from "../html/html";
+import { createCheck, type CheckAnnotation } from "./checks";
 
-// The report inside GitHub, without any API call or token:
-//   - notices: workflow commands in the log, shown next to the AI code in the pull request's "Files changed"
-//   - the step summary: Markdown on the run's summary page
-// GitHub shows at most 10 notices per step, so only the largest AI blocks get one.
+// The report inside GitHub:
+//   - the step summary: Markdown on the run's summary page (always)
+//   - a "goAirside" check on the pull request, with one annotation per file that has AI code, shown in
+//     "Files changed" (needs `checks: write` and the token in the workflow; otherwise skipped)
 
-const MAX_NOTICES = 10;
-
-export interface AiBlock {
-  path: string;
-  line: number;
-  endLine: number;
-  message: string;
-}
-
-/** Writes the notices to stdout and the summary to $GITHUB_STEP_SUMMARY, when running in GitHub Actions. */
-export function writeGitHubOutput(data: ReportData, env: NodeJS.ProcessEnv = process.env): void {
+/** Writes the step summary and creates the check, when running in GitHub Actions. */
+export async function writeGitHubOutput(data: ReportData, headSha: string, env: NodeJS.ProcessEnv = process.env): Promise<void> {
   if (env.GITHUB_ACTIONS !== "true") return;
-  const blocks = aiBlocks(data.files);
-  for (const b of blocks.slice(0, MAX_NOTICES)) console.log(notice(b));
-  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, stepSummary(data, blocks.length));
+  if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, stepSummary(data));
+
+  const runUrl =
+    env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID
+      ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`
+      : undefined;
+  const added = data.files.reduce((n, f) => n + f.addedTokens, 0);
+  const ai = data.files.reduce((n, f) => n + f.aiTokens, 0);
+  const result = await createCheck(
+    {
+      headSha,
+      title: `${percent(ai, added)} of the new code is AI-written`,
+      summary: stepSummary(data),
+      detailsUrl: runUrl,
+      annotations: fileAnnotations(data.files, runUrl),
+    },
+    env
+  );
+  if (result !== "created") console.log(`goAirside check skipped: ${result}`);
 }
 
-/** AI spans on neighbouring lines of a file, as one block each; largest first. */
-export function aiBlocks(files: ReportFile[]): AiBlock[] {
-  const blocks: Array<AiBlock & { changes: Set<string> }> = [];
-  for (const f of files) {
-    let block: (AiBlock & { changes: Set<string> }) | null = null;
-    for (const s of [...f.spans].sort((a, b) => a.line - b.line)) {
-      if (block && s.line <= block.endLine + 1) {
-        block.endLine = s.line;
-      } else {
-        block = { path: f.path, line: s.line, endLine: s.line, message: "", changes: new Set() };
-        blocks.push(block);
-      }
-      block.changes.add(describe(s.change));
-    }
+/** One annotation per file with AI code, on its first AI line. */
+export function fileAnnotations(files: ReportFile[], runUrl?: string): CheckAnnotation[] {
+  return files
+    .filter((f) => f.spans.length)
+    .map((f) => {
+      const lines = [...new Set(f.spans.map((s) => s.line))].sort((a, b) => a - b);
+      const models = [...new Set(f.spans.map((s) => s.change.model ?? "unknown model"))];
+      return {
+        path: f.path,
+        start_line: lines[0],
+        end_line: lines[0],
+        annotation_level: "notice" as const,
+        title: `AI-written code: ${percent(f.aiTokens, f.addedTokens)} of this file's changes`,
+        message: `Lines ${lineRanges(lines)} · ${models.join(", ")}` + (runUrl ? `\nDetails: ${runUrl}` : ""),
+      };
+    });
+}
+
+/** [3, 4, 5, 9, 12, 13] → "3–5, 9, 12–13". */
+export function lineRanges(lines: number[]): string {
+  const ranges: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const start = lines[i];
+    while (lines[i + 1] === lines[i] + 1) i++;
+    ranges.push(start === lines[i] ? `${start}` : `${start}–${lines[i]}`);
   }
-  return blocks
-    .map(({ changes, ...b }) => ({ ...b, message: [...changes].join("\n") }))
-    .sort((a, b) => b.endLine - b.line - (a.endLine - a.line));
+  return ranges.join(", ");
 }
 
-/** A notice workflow command (values escaped as GitHub requires). */
-export function notice(b: AiBlock): string {
-  const prop = (v: string) => escapeData(v).replace(/:/g, "%3A").replace(/,/g, "%2C");
-  return `::notice file=${prop(b.path)},line=${b.line},endLine=${b.endLine},title=${prop("AI-written code")}::${escapeData(b.message)}`;
-}
-
-function escapeData(v: string): string {
-  return v.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
-}
-
-export function stepSummary(data: ReportData, blockCount: number): string {
+export function stepSummary(data: ReportData): string {
   const added = data.files.reduce((n, f) => n + f.addedTokens, 0);
   const ai = data.files.reduce((n, f) => n + f.aiTokens, 0);
   const aiFiles = data.files.filter((f) => f.aiTokens > 0).sort((a, b) => b.aiTokens - a.aiTokens);
@@ -75,8 +82,6 @@ export function stepSummary(data: ReportData, blockCount: number): string {
     for (const f of aiFiles) lines.push(`| \`${cell(f.path)}\` | ${percent(f.aiTokens, f.addedTokens)} |`);
     lines.push(``);
   }
-  if (blockCount > MAX_NOTICES)
-    lines.push(`The ${MAX_NOTICES} largest of ${blockCount} AI blocks are marked in the pull request's changes.`, ``);
   lines.push(`The full report with the highlighted code is in the **goairside-report** artifact below.`, ``);
   return lines.join("\n");
 }

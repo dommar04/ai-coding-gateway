@@ -1,7 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -12,7 +12,8 @@ import { matchFile, type AiSpan } from "../src/services/report/helper/matcher";
 import { encodeSegment, hashToken, tokenize } from "../src/services/trace/helper/hasher";
 import { renderReport, type ReportFile } from "../src/services/report/html/html";
 import { runReport } from "../src/services/report/handler";
-import { aiBlocks, notice, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
+import { fileAnnotations, lineRanges, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
+import { createCheck } from "../src/services/report/github/checks";
 
 const root = mkdtempSync(join(tmpdir(), "apichap-report-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -369,10 +370,10 @@ test("html: a report without AI changes still renders", () => {
 
 // The whole report
 
-test("report: from a branch with traces to index.html, locally against the default branch", () => {
+test("report: from a branch with traces to index.html, locally against the default branch", async () => {
   const dir = makeRepo();
   const out = join(dir, "out");
-  const { file, data } = runReport({ cwd: dir, out, env: {} });
+  const { file, data } = await runReport({ cwd: dir, out, env: {} });
   assert.equal(file, join(out, "index.html"));
   assert.equal(data.subject, "HEAD → main");
   assert.equal(data.sessions, 2);
@@ -419,54 +420,127 @@ test("report: the CLI prints a summary and writes the report", () => {
 
 const span = (line: number, change: TracedChange): AiSpan => ({ line, start: 0, end: 1, change });
 
-test("github: AI spans on neighbouring lines become one block, largest first", () => {
+test("github: one annotation per file with AI code, on its first AI line, with its line ranges", () => {
   const c = traced(["x"], "2026-10-21T11:14:24Z", "claude-opus-5-5");
-  const blocks = aiBlocks([
-    reportFile({ path: "a.ts", spans: [span(3, c), span(4, c), span(10, c)] }),
-    reportFile({ path: "b.ts", spans: [span(1, c), span(2, c), span(3, c), span(4, c)] }),
-  ]);
-  assert.deepEqual(
-    blocks.map((b) => [b.path, b.line, b.endLine]),
+  const annotations = fileAnnotations(
     [
-      ["b.ts", 1, 4],
-      ["a.ts", 3, 4],
-      ["a.ts", 10, 10],
+      reportFile({ path: "a.ts", spans: [span(12, c), span(13, c), span(14, c), span(20, c)], addedTokens: 10, aiTokens: 4 }),
+      reportFile({ path: "human.ts" }),
+    ],
+    "https://github.com/o/r/actions/runs/1"
+  );
+  assert.deepEqual(annotations, [
+    {
+      path: "a.ts",
+      start_line: 12,
+      end_line: 12,
+      annotation_level: "notice",
+      title: "AI-written code: 40% of this file's changes",
+      message: "Lines 12–14, 20 · claude-opus-5-5\nDetails: https://github.com/o/r/actions/runs/1",
+    },
+  ]);
+  assert.equal(lineRanges([1, 2, 3, 7, 9, 10]), "1–3, 7, 9–10");
+});
+
+/** Runs `fn` with fetch replaced by a fake that records the requests and answers with `status`. */
+async function withFakeFetch(status: number, fn: () => Promise<void>) {
+  const requests: Array<{ method: string; url: string; body: any }> = [];
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    requests.push({ method: String(init.method), url, body: JSON.parse(String(init.body)) });
+    return new Response(JSON.stringify({ id: 7 }), { status });
+  }) as typeof fetch;
+  try {
+    await fn();
+  } finally {
+    globalThis.fetch = real;
+  }
+  return requests;
+}
+
+const GITHUB_ENV = {
+  GITHUB_ACTIONS: "true",
+  GITHUB_API_URL: "https://api.github.test",
+  GITHUB_REPOSITORY: "o/r",
+  GITHUB_SERVER_URL: "https://github.test",
+  GITHUB_RUN_ID: "99",
+  GITHUB_TOKEN: "t0ken",
+};
+
+test("github: the check goes to GitHub's API only, with more than 50 annotations in several requests", async () => {
+  const annotations = Array.from({ length: 120 }, (_, i) => ({
+    path: `f${i}.ts`,
+    start_line: 1,
+    end_line: 1,
+    annotation_level: "notice" as const,
+    title: "t",
+    message: "m",
+  }));
+  let result = "";
+  const requests = await withFakeFetch(201, async () => {
+    result = await createCheck({ headSha: "abc", title: "57% AI", summary: "s", annotations }, GITHUB_ENV);
+  });
+  assert.equal(result, "created");
+  assert.deepEqual(
+    requests.map((r) => [r.method, r.url, r.body.output.annotations.length]),
+    [
+      ["POST", "https://api.github.test/repos/o/r/check-runs", 50],
+      ["PATCH", "https://api.github.test/repos/o/r/check-runs/7", 50],
+      ["PATCH", "https://api.github.test/repos/o/r/check-runs/7", 20],
     ]
   );
-  assert.equal(blocks[0].message, "claude-opus-5-5 · Edit · 21 Oct 2026, 11:14 UTC");
-});
-
-test("github: notices escape their values like GitHub requires", () => {
-  assert.equal(
-    notice({ path: "src/a,b:c.ts", line: 3, endLine: 5, message: "100% AI\nsecond model" }),
-    "::notice file=src/a%2Cb%3Ac.ts,line=3,endLine=5,title=AI-written code::100%25 AI%0Asecond model"
+  assert.deepEqual(
+    [requests[0].body.name, requests[0].body.head_sha, requests[0].body.conclusion],
+    ["goAirside", "abc", "neutral"]
   );
 });
 
-test("github: notices and the step summary are written only in GitHub Actions", () => {
+test("github: without token or permission the check is skipped, without failing", async () => {
+  const check = { headSha: "abc", title: "t", summary: "s", annotations: [] };
+  const { GITHUB_TOKEN: _, ...noToken } = GITHUB_ENV;
+  const none = await withFakeFetch(201, async () => {
+    assert.match(await createCheck(check, noToken), /no GITHUB_TOKEN/);
+  });
+  assert.equal(none.length, 0);
+  await withFakeFetch(403, async () => {
+    assert.match(await createCheck(check, GITHUB_ENV), /checks: write/);
+  });
+});
+
+test("github: the step summary is written, and the check created, only in GitHub Actions", async () => {
   const c = traced(["x"]);
   const data = { ...reportData([reportFile({ spans: [span(1, c)], addedTokens: 4, aiTokens: 3 })]), subject: "f → main · #1" };
   const summary = join(mkdtempSync(join(root, "summary-")), "summary.md");
-  const logged: string[] = [];
-  const log = console.log;
-  console.log = (line: string) => logged.push(line);
-  try {
-    writeGitHubOutput(data, {});
-    assert.deepEqual(logged, []);
-    writeGitHubOutput(data, { GITHUB_ACTIONS: "true", GITHUB_STEP_SUMMARY: summary });
-  } finally {
-    console.log = log;
-  }
-  assert.deepEqual(logged, ["::notice file=src/a.ts,line=1,endLine=1,title=AI-written code::m1 · Edit · 21 Oct 2026, 09:01 UTC"]);
+  const local = await withFakeFetch(201, () => writeGitHubOutput(data, "abc", {}));
+  assert.equal(local.length, 0);
+
+  const requests = await withFakeFetch(201, () =>
+    writeGitHubOutput(data, "abc", { ...GITHUB_ENV, GITHUB_STEP_SUMMARY: summary })
+  );
   const md = readFileSync(summary, "utf8");
   assert.match(md, /\*\*75%\*\* of the new code was written by AI · f → main · #1/);
   assert.match(md, /\| `src\/a.ts` \| 75% \|/);
-  assert.match(md, /goairside-report\*\* artifact/);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].body.output.title, "75% of the new code is AI-written");
+  assert.equal(requests[0].body.details_url, "https://github.test/o/r/actions/runs/99");
+  assert.equal(requests[0].body.output.annotations[0].path, "src/a.ts");
 });
 
 test("github: a small but present AI share shows as <1%, not 0%", () => {
   const c = traced(["x"]);
   const tiny = reportData([reportFile({ spans: [span(1, c)], addedTokens: 1000, aiTokens: 3 })]);
-  assert.match(stepSummary(tiny, 1), /\| `src\/a.ts` \| <1% \|/);
-  assert.match(stepSummary(tiny, 1), /\*\*<1%\*\* of the new code/);
+  assert.match(stepSummary(tiny), /\| `src\/a.ts` \| <1% \|/);
+  assert.match(stepSummary(tiny), /\*\*<1%\*\* of the new code/);
+});
+
+test("the report's only network code is the GitHub check", () => {
+  const dir = join(__dirname, "..", "src", "services", "report");
+  const files = (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith(".ts"));
+  const network = files.filter((f) =>
+    /\bfetch\(|from "node:(https?|net|tls|dgram)"|XMLHttpRequest|WebSocket/.test(readFileSync(join(dir, f), "utf8"))
+  );
+  assert.deepEqual(
+    network.map((f) => f.split("\\").join("/")),
+    ["github/checks.ts"]
+  );
 });

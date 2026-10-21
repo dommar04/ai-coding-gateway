@@ -8,7 +8,7 @@ export async function runReport(args: string[]): Promise<void> {
 
   // Loaded lazily so the hooks never pay for the report code.
   const { runReport: report } = await import("../../services/report/handler");
-  const { file, data } = report({ base: text("base"), head: text("head"), out: text("out") });
+  const { file, data } = await report({ base: text("base"), head: text("head"), out: text("out") });
 
   for (const warning of data.warnings) console.error(`Warning: ${warning}`);
   const added = data.files.reduce((n, f) => n + f.addedTokens, 0);
