@@ -1,4 +1,4 @@
-import { fail, parseArgs } from "./args";
+import { fail, parseArgs } from "../helper/args";
 
 // dashboard: start the local web dashboard.
 
@@ -9,7 +9,7 @@ export async function runDashboard(args: string[]): Promise<void> {
   if (!Number.isInteger(port) || port < 0 || port > 65535) fail(`Invalid port "${String(flags.port)}".`);
 
   // Loaded lazily so the hooks never pay for the dashboard code.
-  const { startDashboard, openBrowser } = await import("../dashboard/server");
+  const { startDashboard, openBrowser } = await import("../../dashboard/server");
   const dashboard = await startDashboard({ port, portFallback: !explicitPort });
   console.log(`apichap AI Coding Gateway dashboard running at:
 

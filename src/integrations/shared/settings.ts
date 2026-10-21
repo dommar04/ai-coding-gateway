@@ -31,7 +31,7 @@ const PHASES = [
 type Phase = (typeof PHASES)[number]["phase"] | "prompt";
 const ALL_PHASES = [...PHASES, { event: "UserPromptSubmit", phase: "prompt" as const }];
 
-// Our own hook commands, including older forms (global bin, npx, running from a source checkout).
+// Our own hook cli, including older forms (global bin, npx, running from a source checkout).
 const OUR_COMMAND =
   /(apichap-ai-coding-gateway(@\S+)?|apichap-gateway|claude-gateway|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
 

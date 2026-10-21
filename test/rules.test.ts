@@ -40,7 +40,7 @@ test("splitCommand extracts command substitutions", () => {
   assert.deepEqual(splitCommand("Write-Output a`;b", "powershell"), ["Write-Output a`;b"]);
 });
 
-test("heredoc bodies are data, not commands", () => {
+test("heredoc bodies are data, not cli", () => {
   const commit = [
     `git commit -m "$(cat <<'EOF'`,
     "Fix: don't break (things) | ever",
@@ -106,10 +106,10 @@ test("gateway protection matches running the gateway, not mentioning it", () => 
   assert.equal(bash(readme).decision, "allow");
   // Running it is blocked.
   for (const cmd of [
-    "apichap-gateway mode off",
+    "apichap-gateway uninstall --agent claude",
     "npx -y apichap-ai-coding-gateway uninstall",
-    "cd x && node C:/npm/node_modules/apichap-ai-coding-gateway/dist/cli.js rules",
-    "node C:\\npm\\node_modules\\apichap-ai-coding-gateway\\dist\\main.js mode off",
+    "cd x && node C:/npm/node_modules/apichap-ai-coding-gateway/dist/cli.js dashboard",
+    "node C:\\npm\\node_modules\\apichap-ai-coding-gateway\\dist\\main.js uninstall",
     "cat ~/.ai-coding-gateway/gateway.sqlite",
   ]) {
     const v = bash(cmd);
@@ -117,7 +117,7 @@ test("gateway protection matches running the gateway, not mentioning it", () => 
   }
 });
 
-test("simple allowed commands pass", () => {
+test("simple allowed cli pass", () => {
   for (const cmd of ["git status", "git diff --stat", "ls", "ls -la src", "npm run build", "cd src && npm test"]) {
     assert.equal(bash(cmd).decision, "allow", cmd);
   }
@@ -182,11 +182,11 @@ test("file tools: project files allowed, secrets and outside paths not", () => {
 
 test("the agent cannot manage the gateway itself", () => {
   for (const cmd of [
-    "apichap-gateway rules enable 3",
-    "apichap-gateway rules add allow x",
-    "apichap-gateway mode off",
+    "apichap-gateway uninstall --agent codex",
+    "apichap-gateway init --agent claude --local",
+    "apichap-gateway hook pre --agent claude",
     "apichap-gateway dashboard --no-open",
-    "npx apichap-ai-coding-gateway rules reset",
+    "npx apichap-ai-coding-gateway dashboard --port 5000",
     "npx apichap-ai-coding-gateway uninstall",
     "pnpm dlx apichap-ai-coding-gateway init",
   ]) {
