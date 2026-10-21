@@ -15,6 +15,8 @@ export interface ToolCall {
   agentId?: string;
   /** Where the agent keeps its session transcript, when it has one. */
   transcriptPath?: string;
+  /** The model that made the call, when known (set for calls that have finished). */
+  model?: string;
 }
 
 export interface ToolResult {

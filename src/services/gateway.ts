@@ -7,6 +7,7 @@ import { inputTokens } from "./reduction/adapters";
 import { effectiveMode, getMode, modeOverride } from "./settings";
 import { checkToolSecurity, type SecurityCheck } from "./tool-security";
 import { gatewayErrorMessage } from "./tool-security/messages";
+import { traceToolCall } from "./trace/handler";
 
 // The gateway workflow, independent of any agent:
 //
@@ -14,6 +15,7 @@ import { gatewayErrorMessage } from "./tool-security/messages";
 //                        2. log the call
 //   after a tool call:   1. result reduction                        → may shrink the result
 //                        2. log result and token figures
+//                        3. trace what the agent wrote into the project (.goairside/traces)
 //   context reset:       forget what the agent had already read
 //
 // Entry points (Claude Code hooks, ...) translate their payloads into a ToolCall and back.
@@ -96,6 +98,13 @@ export function afterToolCall(call: ToolCall, result: ToolResult, capabilities: 
     reducedResult: reduced?.response,
   });
   emitEvent({ type: "post", toolUseId: call.toolUseId, sessionId: call.sessionId, toolName: call.toolName });
+
+  // 3. Trace. Like reduction, a failure here must never affect the tool call.
+  try {
+    traceToolCall(call);
+  } catch (err) {
+    logError("trace", err);
+  }
 
   return {
     ...(reduced?.response !== undefined ? { updatedResponse: reduced.response } : {}),

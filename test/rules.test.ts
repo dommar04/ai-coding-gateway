@@ -2,7 +2,7 @@ import { test } from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
-import { splitCommand } from "../src/services/tool-security/matching/shell";
+import { splitCommand, splitWithHeredocs } from "../src/services/tool-security/matching/shell";
 import { evaluate, type Rule } from "../src/services/tool-security/matching/engine";
 import { suggestRules, broadCommandPattern } from "../src/services/tool-security/matching/suggest";
 import { extractSubject } from "../src/services/tool-security/matching/pattern";
@@ -30,6 +30,32 @@ test("splitCommand splits chains but respects quotes", () => {
   assert.deepEqual(splitCommand('echo "a && b; c | d"', "bash"), ['echo "a && b; c | d"']);
   assert.deepEqual(splitCommand("a || b ; c | d & e\nf", "bash"), ["a", "b", "c", "d", "e", "f"]);
   assert.deepEqual(splitCommand("npm test 2>&1 | tail -5", "bash"), ["npm test 2>&1", "tail -5"]);
+});
+
+test("splitWithHeredocs keeps each heredoc body with the command it belongs to", () => {
+  assert.deepEqual(splitWithHeredocs("cat > a.ts <<'EOF'\nconst a = 1;\nEOF", "bash"), [
+    { command: "cat > a.ts <<'EOF'", heredocs: ["const a = 1;\n"] },
+  ]);
+  // The body follows the whole line, but belongs to the command with the `<<`.
+  assert.deepEqual(splitWithHeredocs("cat > a.ts <<EOF && echo done\nx\nEOF\nls", "bash"), [
+    { command: "cat > a.ts <<EOF", heredocs: ["x\n"] },
+    { command: "echo done", heredocs: [] },
+    { command: "ls", heredocs: [] },
+  ]);
+  assert.deepEqual(splitWithHeredocs("cat <<A > a && tee b <<-B\none\nA\n\ttwo\n\tB", "bash"), [
+    { command: "cat <<A > a", heredocs: ["one\n"] },
+    { command: "tee b <<-B", heredocs: ["\ttwo\n"] },
+  ]);
+  assert.deepEqual(splitWithHeredocs('FOO=1 tee x.md <<"EOF"\n# Title\nEOF', "bash"), [
+    { command: 'tee x.md <<"EOF"', heredocs: ["# Title\n"] },
+  ]);
+  // Heredocs inside $(...) belong to the inner command.
+  assert.deepEqual(splitWithHeredocs("git commit -m \"$(cat <<'EOF'\nmsg\nEOF\n)\"", "bash"), [
+    { command: "cat <<'EOF'", heredocs: ["msg\n"] },
+    // Whitespace is kept (unlike splitCommand): it can be the content written to a file.
+    { command: "git commit -m \"$(cat <<'EOF'\n)\"", heredocs: [] },
+  ]);
+  assert.deepEqual(splitWithHeredocs("echo hi > a.txt", "bash"), [{ command: "echo hi > a.txt", heredocs: [] }]);
 });
 
 test("splitCommand extracts command substitutions", () => {
@@ -193,6 +219,24 @@ test("the agent cannot manage the gateway itself", () => {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
   }
+});
+
+test("the agent cannot change the project's trace", () => {
+  const sep = process.platform === "win32" ? "\\" : "/";
+  const trace = [CWD, ".goairside", "traces", "2026-10-21T09-15-03Z_a1b2c3d4.jsonl"].join(sep);
+  for (const [tool, input] of [
+    ["Write", { file_path: trace, content: "{}" }],
+    ["Edit", { file_path: trace, old_string: "a", new_string: "b" }],
+    ["Bash", { command: `echo '{}' >> ${trace}` }],
+    ["Bash", { command: "cat .goairside/traces/x.jsonl" }],
+    ["Bash", { command: "sed -i 's/a/b/' .goairside/traces/x.jsonl" }],
+    ["PowerShell", { command: "Set-Content .goairside\\traces\\x.jsonl '{}'" }],
+  ] as const) {
+    const v = run(tool, input);
+    assert.ok(v.decision === "deny" && v.reason === "rule", `${tool} ${JSON.stringify(input)}`);
+  }
+  // Committing everything still works; only naming the folder is blocked.
+  assert.equal(bash("git status").decision, "allow");
 });
 
 test("search tools are checked by the folder they search", () => {

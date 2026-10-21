@@ -78,6 +78,22 @@ export function splitCommand(cmd: string, shell: Shell): string[] {
     .filter((s): s is string => s !== null && s.length > 0);
 }
 
+export interface CommandWithHeredocs {
+  command: string;
+  /** Bodies of the heredocs this command reads (<<EOF ... EOF), in order. */
+  heredocs: string[];
+}
+
+/** Like splitCommand, but keeps the heredoc bodies, each with the command whose `<<` it belongs to. */
+export function splitWithHeredocs(cmd: string, shell: Shell): CommandWithHeredocs[] {
+  const out: string[] = [];
+  const heredocs = new Map<number, string[]>();
+  collect(cmd, shell, out, heredocs);
+  return out
+    .map((command, i) => ({ command: simplifySegment(command.trim(), shell), heredocs: heredocs.get(i) ?? [] }))
+    .filter((c): c is CommandWithHeredocs => c.command !== null && c.command.length > 0);
+}
+
 // A variable assignment: NAME=value, value unquoted, "quoted", 'quoted', $(…) or `…`.
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\$\((?:[^()]|\([^()]*\))*\)|`[^`]*`|[^\s"'`$]+|\$)*/;
 
@@ -197,31 +213,39 @@ function findClose(cmd: string, start: number, shell: Shell): number {
 }
 
 /** Commands bash would run from an unquoted heredoc body: its $(...) and backtick substitutions. */
-function collectSubstitutions(body: string, shell: Shell, out: string[]): void {
+function collectSubstitutions(body: string, shell: Shell, out: string[], heredocs?: Map<number, string[]>): void {
   for (let i = 0; i < body.length; i++) {
     if (body[i] === "\\") {
       i++;
     } else if (body[i] === "$" && body[i + 1] === "(") {
       const end = findClose(body, i + 2, shell);
-      collect(body.slice(i + 2, end), shell, out);
+      collect(body.slice(i + 2, end), shell, out, heredocs);
       i = end;
     } else if (body[i] === "`") {
       const found = body.indexOf("`", i + 1);
       const end = found === -1 ? body.length : found;
-      collect(body.slice(i + 1, end), shell, out);
+      collect(body.slice(i + 1, end), shell, out, heredocs);
       i = end;
     }
   }
 }
 
-function collect(cmd: string, shell: Shell, out: string[]): void {
+/** Splits `cmd` into `out`. With `heredocs`, also records each heredoc body under the index of its command in `out`. */
+function collect(cmd: string, shell: Shell, out: string[], heredocs?: Map<number, string[]>): void {
   const escapeChar = shell === "bash" ? "\\" : "`";
   let cur = "";
   let quote: '"' | "'" | null = null;
   let pendingHeredocs: Heredoc[] = [];
+  // The body follows the line the `<<` is on, possibly after other commands: remember whose heredoc it is.
+  let curHeredocs = 0;
+  let owners: number[] = [];
   const flush = () => {
-    if (cur.trim()) out.push(cur);
+    if (cur.trim()) {
+      out.push(cur);
+      for (; curHeredocs > 0; curHeredocs--) owners.push(out.length - 1);
+    }
     cur = "";
+    curHeredocs = 0;
   };
 
   for (let i = 0; i < cmd.length; i++) {
@@ -244,7 +268,7 @@ function collect(cmd: string, shell: Shell, out: string[]): void {
       (c === "$" && next === "(") || (shell === "bash" && quote === null && (c === "<" || c === ">") && next === "(");
     if (isSubstitution) {
       const end = findClose(cmd, i + 2, shell);
-      collect(cmd.slice(i + 2, end), shell, out);
+      collect(cmd.slice(i + 2, end), shell, out, heredocs);
       // Keep the substitution in this command's text, minus any heredoc bodies inside it (data, not code).
       cur += stripHeredocBodies(cmd.slice(i, end + 1), shell);
       i = end;
@@ -254,7 +278,7 @@ function collect(cmd: string, shell: Shell, out: string[]): void {
     if (shell === "bash" && c === "`") {
       const found = cmd.indexOf("`", i + 1);
       const end = found === -1 ? cmd.length : found;
-      collect(cmd.slice(i + 1, end), shell, out);
+      collect(cmd.slice(i + 1, end), shell, out, heredocs);
       cur += cmd.slice(i, end + 1);
       i = end;
       continue;
@@ -276,6 +300,7 @@ function collect(cmd: string, shell: Shell, out: string[]): void {
       const h = readHeredoc(cmd, i);
       if (h) {
         pendingHeredocs.push(h.heredoc);
+        curHeredocs++;
         cur += cmd.slice(i, h.end);
         i = h.end - 1;
         continue;
@@ -285,8 +310,13 @@ function collect(cmd: string, shell: Shell, out: string[]): void {
     if (c === "\n" && pendingHeredocs.length) {
       flush();
       const { next: after, bodies } = skipHeredocBodies(cmd, i + 1, pendingHeredocs);
-      for (const body of bodies) if (!body.quoted) collectSubstitutions(body.text, shell, out);
+      bodies.forEach((body, k) => {
+        const owner = owners[k];
+        if (heredocs && owner !== undefined) heredocs.set(owner, [...(heredocs.get(owner) ?? []), body.text]);
+      });
+      for (const body of bodies) if (!body.quoted) collectSubstitutions(body.text, shell, out, heredocs);
       pendingHeredocs = [];
+      owners = [];
       i = after - 1;
       continue;
     }

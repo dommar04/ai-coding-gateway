@@ -28,6 +28,7 @@ export interface CodexHookInput {
   turn_id?: string;
   transcript_path?: string | null;
   agent_id?: string;
+  model?: string;
   tool_name: string;
   tool_use_id: string;
   tool_input: unknown;
@@ -64,6 +65,7 @@ export function toToolCall(input: CodexHookInput): ToolCall {
     sessionId: input.session_id,
     promptId: input.turn_id ? codexPromptId(input.session_id, input.turn_id) : undefined,
     agentId: input.agent_id,
+    model: input.model || undefined,
     // Codex's transcript format is not a stable hook interface. Do not parse it as Claude JSONL.
   };
 }
