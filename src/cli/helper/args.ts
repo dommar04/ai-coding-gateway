@@ -1,4 +1,4 @@
-// Shared helpers for commands: argument parsing, errors, formatting.
+// Shared helpers for cli: argument parsing and errors.
 
 export function parseArgs(args: string[]): { positional: string[]; flags: Record<string, string | true> } {
   const positional: string[] = [];
@@ -24,15 +24,3 @@ export function fail(message: string): never {
   console.error(message);
   process.exit(1);
 }
-
-export function parseId(value: string | undefined): number {
-  const id = Number(value);
-  if (!Number.isInteger(id) || id <= 0) fail(`Expected a numeric id, got "${value ?? ""}".`);
-  return id;
-}
-
-export function truncate(value: string, max: number): string {
-  return value.length > max ? value.slice(0, max - 1) + "…" : value;
-}
-
-export const fmt = (n: number) => n.toLocaleString("en");

@@ -1,6 +1,6 @@
-import { integrationFor } from "../integrations";
-import { runIntegrationHook } from "../integrations/shared/hooks";
-import { fail, parseArgs } from "./args";
+import { integrationFor } from "../../integrations";
+import { runIntegrationHook } from "../../integrations/shared/hooks";
+import { fail, parseArgs } from "../helper/args";
 export async function runHook(args: string[]): Promise<void> {
   const { positional, flags } = parseArgs(args);
   const phase = positional[0];

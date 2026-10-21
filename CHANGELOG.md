@@ -2,6 +2,10 @@
 
 Notable changes for each release are listed here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 1.0.1
+
+- **CLI command update:** Cleanup CLI commands
+
 ## 1.0.0
 
 - **Codex support:** Support for Codex.

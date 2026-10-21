@@ -13,7 +13,7 @@ body:
     id: call
     attributes:
       label: Tool call or command
-      description: The tool call, command or rule involved. `apichap-gateway rules test "Bash(...)"` output helps a lot.
+      description: The tool call, command or rule involved. The result of testing the call on the dashboard's Rules page helps a lot.
       render: text
   - type: input
     id: version

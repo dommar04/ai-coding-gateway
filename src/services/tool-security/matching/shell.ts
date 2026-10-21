@@ -1,8 +1,8 @@
-// Splits a shell command into the individual commands it runs, so that
-// `git status && rm -rf ~` is judged as two commands, not one "git ..." command.
+// Splits a shell command into the individual cli it runs, so that
+// `git status && rm -rf ~` is judged as two cli, not one "git ..." command.
 // Splits on && || ; | & and newlines (respecting quotes) and also extracts the
-// commands inside $(...), <(...), >(...) and bash backticks. Heredoc bodies (<<EOF ... EOF)
-// are data, not commands; only $(...) inside an unquoted heredoc is extracted, since bash runs it.
+// cli inside $(...), <(...), >(...) and bash backticks. Heredoc bodies (<<EOF ... EOF)
+// are data, not cli; only $(...) inside an unquoted heredoc is extracted, since bash runs it.
 
 export type Shell = "bash" | "powershell";
 

@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
-import { getDb } from "../storage/database";
-import { integrationFor } from "../integrations";
-import { parseArgs } from "./args";
+import { getDb } from "../../storage/database";
+import { integrationFor } from "../../integrations";
+import { parseArgs } from "../helper/args";
 
 // init / uninstall: register or remove the selected integration's hooks.
 

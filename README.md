@@ -7,8 +7,9 @@
   <img src="assets/hero_image.png" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
 </p>
 
-<h3 align="center">Track & Audit Every Tool Call. And Deny the bad one.</h3>
 
+<h3 align="center">Track & Audit Every Tool Call. And Deny the bad one.</h3>
+<br/>
 <p align="center">
   <a href="https://www.npmjs.com/package/apichap-ai-coding-gateway"><img src="https://img.shields.io/npm/v/apichap-ai-coding-gateway?color=4b8e7a&label=npm" alt="npm version"></a>
   <img src="https://img.shields.io/badge/node-%E2%89%A5%2022.13-4b8e7a" alt="Node.js 22.13 or newer">
@@ -17,7 +18,7 @@
   <img src="https://img.shields.io/badge/license-GPL--3.0-4b8e7a" alt="Claude Code">
   <img src="https://img.shields.io/badge/license-GPL--3.0-4b8e7a" alt="Codex">
 </p>
-
+<br/>
 ## Install
 
 Add a local gateway that checks Claude Code and Codex tool calls against your rules, blocks prohibited actions, and shortens supported tool output to save context.
@@ -162,20 +163,11 @@ For example, `Shell(git *)` allows Git commands in Bash and PowerShell, while `B
 
 **When a call is denied:** open it on the Activity page and choose **Allow this call…**. For an unlisted call, the gateway suggests an exact rule and a broader rule; choose the narrowest one that fits. You can add it to the suggested group or choose another group. If a deny rule blocked the call, an allow rule cannot override it—edit or disable that deny rule instead.
 
-You can also manage rules from the command line:
-
-```bash
-apichap-gateway rules                       # list rules and groups
-apichap-gateway rules add allow "Shell(git status)" --note "Read-only status check"
-apichap-gateway rules test "Bash(git status && git push --force)"
-apichap-gateway rules disable 12            # disable rule 12
-```
-
-The dashboard's **Import…** and **Export** actions let you move rules between installations. Import shows a preview first: **Add** keeps existing rules and adds new ones; **Replace** removes the current rules before importing. CLI imports replace by default; add `--merge` to add missing rules instead. Use `rules reset` to restore the built-in rules (or `rules reset --merge` to add missing defaults without replacing yours).
+The dashboard's **Import…** and **Export** actions let you move rules between installations. Import shows a preview first: **Add** keeps existing rules and adds new ones; **Replace** removes the current rules before importing.
 
 ### Modes
 
-Choose the mode in the dashboard sidebar or run `apichap-gateway mode <mode>`:
+Choose the mode in the dashboard sidebar:
 
 | Mode                | What happens                                                                                             |
 | ------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -200,12 +192,9 @@ npx apichap-ai-coding-gateway init --agent claude
 npx apichap-ai-coding-gateway init --agent codex
 npx apichap-ai-coding-gateway uninstall --agent claude
 npx apichap-ai-coding-gateway dashboard
-npx apichap-ai-coding-gateway mode enforce
-npx apichap-ai-coding-gateway rules
-npx apichap-ai-coding-gateway reduction
 ```
 
-Other useful commands include `rules add`, `rules enable` or `rules disable`, `rules import`, `rules export`, and `reduction set <id> on|off`. Run `npx apichap-ai-coding-gateway` without a command to see the full command list.
+Rules, the mode and token reduction are managed in the dashboard. Run `npx apichap-ai-coding-gateway` without a command to see the command list.
 
 ### Data and privacy
 

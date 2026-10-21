@@ -28,7 +28,7 @@ export type SubjectKind = "command" | "path" | "url";
 export interface Subject {
   kind: SubjectKind;
   value: string;
-  /** Case-insensitive matching (PowerShell commands, Windows paths). */
+  /** Case-insensitive matching (PowerShell cli, Windows paths). */
   caseInsensitive: boolean;
   shell?: "bash" | "powershell";
 }

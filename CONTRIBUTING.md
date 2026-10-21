@@ -39,7 +39,7 @@ src/
   commands/                        one file per command group; index.ts is the command table
     hook.ts                        hook pre|post|session (what Claude Code runs for every tool call)
     setup.ts                       init / uninstall
-    dashboard.ts  rules.ts  settings.ts  reduction.ts  activity.ts
+    dashboard.ts                   dashboard (rules, mode and token reduction are managed there)
   integrations/                    connections to AI coding agents; everything agent-specific lives here
     claude/
       hooks/pre-tool-use.ts        PreToolUse  → gateway.beforeToolCall()
