@@ -1,0 +1,30 @@
+name: goAirside report
+
+# The AI change report for every pull request: which new code AI coding agents wrote, from the
+# traces in .goairside/. This repository runs the report from its own source; other projects run
+# the published package instead: npx -y apichap-ai-coding-gateway@<version> report
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The report compares the pull request with its base branch, so it needs the history.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: AI change report
+        run: npx tsx src/main.ts report --out goairside-report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goairside-report
+          path: goairside-report/
