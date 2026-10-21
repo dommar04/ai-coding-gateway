@@ -7,7 +7,6 @@
   <img src="assets/hero_image.png" alt="A coding bot sends tool calls through an airport-style X-ray scanner: one is allowed through and another is denied" width="90%">
 </p>
 
-
 <h3 align="center">Track & Audit Every Tool Call. And Deny the bad one.</h3>
 <br/>
 <p align="center">
