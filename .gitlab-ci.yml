@@ -19,5 +19,5 @@ goairside-report:
   artifacts:
     paths: [goairside-report/]
     reports:
-      # Shows the AI code blocks in the merge request widget and the "Changes" tab.
+      # Shows each AI change in the merge request widget and the "Changes" tab.
       codequality: goairside-report/gl-code-quality.json
