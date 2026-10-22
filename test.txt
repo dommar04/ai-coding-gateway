@@ -1,4 +1,0 @@
-hello world
-hello gitlab
-hello code quality
-hello fingerprints
