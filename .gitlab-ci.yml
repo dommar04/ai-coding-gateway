@@ -11,7 +11,7 @@ goairside-report:
     # Also branches with an open merge request: they can be another merge request's target (develop → main).
     - if: $CI_COMMIT_BRANCH
   variables:
-    # The report compares the merge request with its target branch, so it needs the history.
+    # The report compares the merge request with its target branch and reads every trace, so it needs the history.
     GIT_DEPTH: 0
   script:
     - npm ci
