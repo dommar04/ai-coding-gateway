@@ -2,6 +2,7 @@ import { appendFileSync } from "node:fs";
 import type { ReportData, ReportFile } from "../html/html";
 import { percent } from "../html/html";
 import { createCheck, type CheckAnnotation } from "./checks";
+import { lineRanges } from "../helper/lines";
 
 // The report inside GitHub:
 //   - the step summary: Markdown on the run's summary page (always)
@@ -48,17 +49,6 @@ export function fileAnnotations(files: ReportFile[], runUrl?: string): CheckAnno
         message: `Lines ${lineRanges(lines)} · ${models.join(", ")}` + (runUrl ? `\nDetails: ${runUrl}` : ""),
       };
     });
-}
-
-/** [3, 4, 5, 9, 12, 13] → "3–5, 9, 12–13". */
-export function lineRanges(lines: number[]): string {
-  const ranges: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const start = lines[i];
-    while (lines[i + 1] === lines[i] + 1) i++;
-    ranges.push(start === lines[i] ? `${start}` : `${start}–${lines[i]}`);
-  }
-  return ranges.join(", ");
 }
 
 export function stepSummary(data: ReportData): string {

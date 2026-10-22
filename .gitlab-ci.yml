@@ -1,0 +1,19 @@
+# The AI change report for every merge request: which new code AI coding agents wrote, from the
+# traces in .goairside/. This repository runs the report from its own source; other projects run
+# the published package instead: npx -y apichap-ai-coding-gateway@<version> report
+goairside-report:
+  image: node:22
+  # Only merge requests: GitLab compares the report with the target branch's, so main has none.
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    # The report compares the merge request with its target branch, so it needs the history.
+    GIT_DEPTH: 0
+  script:
+    - npm ci
+    - npx tsx src/main.ts report --out goairside-report
+  artifacts:
+    paths: [goairside-report/]
+    reports:
+      # Shows the AI code blocks in the merge request widget and the "Changes" tab.
+      codequality: goairside-report/gl-code-quality.json

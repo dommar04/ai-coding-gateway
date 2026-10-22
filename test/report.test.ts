@@ -12,7 +12,9 @@ import { matchFile, type AiSpan } from "../src/services/report/helper/matcher";
 import { encodeSegment, hashToken, tokenize } from "../src/services/trace/helper/hasher";
 import { renderReport, type ReportFile } from "../src/services/report/html/html";
 import { runReport } from "../src/services/report/handler";
-import { fileAnnotations, lineRanges, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
+import { fileAnnotations, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
+import { lineRanges } from "../src/services/report/helper/lines";
+import { CODE_QUALITY_FILE, codeQualityFindings, writeGitLabOutput } from "../src/services/report/gitlab/gitlab";
 import { createCheck } from "../src/services/report/github/checks";
 
 const root = mkdtempSync(join(tmpdir(), "apichap-report-"));
@@ -531,6 +533,35 @@ test("github: a small but present AI share shows as <1%, not 0%", () => {
   const tiny = reportData([reportFile({ spans: [span(1, c)], addedTokens: 1000, aiTokens: 3 })]);
   assert.match(stepSummary(tiny), /\| `src\/a.ts` \| <1% \|/);
   assert.match(stepSummary(tiny), /\*\*<1%\*\* of the new code/);
+});
+
+// GitLab output
+
+test("gitlab: one info finding per block of AI lines, on its first line", () => {
+  const opus = traced(["x"], "2026-10-21T11:14:24Z", "claude-opus-5-5");
+  const sonnet = traced(["y"], "2026-10-21T11:14:24Z", "claude-sonnet-5-5");
+  const findings = codeQualityFindings([
+    reportFile({ path: "a.ts", spans: [span(12, opus), span(13, opus), span(14, opus), span(20, sonnet)] }),
+    reportFile({ path: "human.ts" }),
+  ]);
+  assert.deepEqual(
+    findings.map((f) => [f.location.path, f.location.lines.begin, f.severity, f.description]),
+    [
+      ["a.ts", 12, "info", "AI-generated code: lines 12–14 · claude-opus-5-5"],
+      ["a.ts", 20, "info", "AI-generated code: line 20 · claude-sonnet-5-5"],
+    ]
+  );
+  assert.notEqual(findings[0].fingerprint, findings[1].fingerprint);
+  assert.equal(codeQualityFindings([reportFile({ path: "a.ts", spans: [span(12, opus)] })])[0].fingerprint.length, 64);
+});
+
+test("gitlab: the Code Quality report is written only in GitLab CI", () => {
+  const files = [reportFile({ spans: [span(1, traced(["x"]))] })];
+  const out = mkdtempSync(join(root, "gitlab-"));
+  writeGitLabOutput(files, out, {});
+  assert.equal(existsSync(join(out, CODE_QUALITY_FILE)), false);
+  writeGitLabOutput(files, out, { GITLAB_CI: "true" });
+  assert.equal(JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8")).length, 1);
 });
 
 test("the report's only network code is the GitHub check", () => {

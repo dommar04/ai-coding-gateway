@@ -4,6 +4,7 @@ import { resolveRange } from "./helper/ci";
 import { checkHistory, defaultBranch, fileAtHead, newTraceFiles, rangeDiff, repoRoot, type FileDiff } from "./helper/git";
 import { renderReport, type ReportData, type ReportFile } from "./html/html";
 import { writeGitHubOutput } from "./github/github";
+import { writeGitLabOutput } from "./gitlab/gitlab";
 import { matchFile } from "./helper/matcher";
 import { readTrace, type TracedChange } from "./helper/traces";
 
@@ -12,7 +13,8 @@ import { readTrace, type TracedChange } from "./helper/traces";
 //   2. the agent traces those commits add, and their diff
 //   3. per changed file: find the recorded AI content in the file at the head commit
 //   4. write the HTML report
-//   5. in GitHub Actions: the run's summary, and a check with one annotation per AI file in the pull request
+//   5. in GitHub Actions: the run's summary, and a check with one annotation per AI file in the pull request;
+//      in GitLab CI: a Code Quality report with one finding per AI line block, for the merge request
 // Runs locally (git and the files in the checkout). The only network access is that check, to GitHub
 // itself (github/checks.ts), and only when the workflow grants `checks: write` and passes the token.
 
@@ -78,6 +80,7 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
 
   // 5. CI output
   await writeGitHubOutput(data, range.head, options.env ?? process.env);
+  writeGitLabOutput(files, out, options.env ?? process.env);
   return { file, data };
 }
 
