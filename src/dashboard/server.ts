@@ -36,7 +36,7 @@ import {
 } from "../services/tool-security/rule-files/rule-sets";
 import type { Verdict } from "../services/tool-security/matching/engine";
 import { parseJsonOrText } from "../helpers/json";
-import { MODES, getMode, setMode, type Mode } from "../services/settings";
+import { FEATURES, MODES, features, getMode, setFeature, setMode, type Feature, type Mode } from "../services/settings";
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import {
   addGroup,
@@ -180,6 +180,7 @@ function toVerdict(v: Verdict) {
 function stats() {
   return {
     mode: getMode(),
+    features: features(),
     activeRules: countEnabledRules(),
     deniedCalls: countDeniedCalls(),
     tokens: tokenTotals(),
@@ -491,6 +492,14 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
         setMode(body.mode as Mode);
         return sendJson(res, 200, { mode: body.mode });
       }
+    }
+
+    if (path === "/api/features" && method === "PUT") {
+      const body = await readBody(req);
+      if (!FEATURES.includes(body.feature as Feature) || typeof body.on !== "boolean")
+        throw new HttpError(400, `Expected { feature: ${FEATURES.join(" | ")}, on: boolean }`);
+      setFeature(body.feature as Feature, body.on);
+      return sendJson(res, 200, { features: features() });
     }
 
     throw new HttpError(404, "Not found");

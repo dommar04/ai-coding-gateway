@@ -31,7 +31,9 @@ export class TraceFile {
 
   constructor(
     private readonly projectRoot: string,
-    private readonly session: TraceSession
+    private readonly session: TraceSession,
+    /** pipelines: the project's first trace also adds the report to the repository's CI. */
+    private readonly options: { pipelines?: boolean } = {}
   ) {
     this.dir = join(projectRoot, ".goairside", "traces");
   }
@@ -77,7 +79,7 @@ export class TraceFile {
   private create(at: Date): string {
     const firstTrace = !existsSync(join(this.projectRoot, ".goairside"));
     mkdirSync(this.dir, { recursive: true });
-    if (firstTrace) setUpPipelines(this.projectRoot);
+    if (firstTrace && this.options.pipelines !== false) setUpPipelines(this.projectRoot);
     const stamp = at.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
     const file = join(this.dir, `${stamp}_${this.session.id.slice(0, 8)}.jsonl`);
     const header = {

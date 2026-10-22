@@ -46,21 +46,34 @@
         <path d="M12 15V3M7 8l5-5 5 5" />
         <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
       </symbol>
+      <symbol id="i-sidebar" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M9 4v16" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+        <circle cx="16" cy="7" r="2" />
+        <circle cx="10" cy="17" r="2" />
+      </symbol>
+      <symbol id="i-laptop" viewBox="0 0 24 24">
+        <rect x="4" y="5" width="16" height="11" rx="1.5" />
+        <path d="M2 19h20" />
+      </symbol>
       <symbol id="i-download" viewBox="0 0 24 24">
         <path d="M12 3v12M7 10l5 5 5-5" />
         <path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
       </symbol>
     </svg>
 
-    <div class="app">
-      <aside class="sidebar">
+    <div class="app" id="app">
+      <aside class="sidebar" id="sidebar">
         <div class="brand">
           <picture>
             <source srcset="/assets/apichap-logo-dark.png" media="(prefers-color-scheme: dark)" />
             <img src="/assets/apichap-logo.png" alt="apichap" />
           </picture>
-          <div class="product">AI Coding Gateway</div>
         </div>
+        <div class="nav-label">AI Coding Gateway</div>
         <nav class="menu">
           <a href="#calls" data-page="calls"
             ><svg class="icon"><use href="#i-activity" /></svg><span class="lbl">Activity</span></a
@@ -105,129 +118,193 @@
             </div>
           </div>
           <div class="conn" id="conn" hidden><span class="dot down"></span><span>Reconnecting…</span></div>
+          <!-- Today always local. Later: sign in here to a managed workspace, which syncs the company's rules and settings. -->
+          <div class="env-wrap">
+            <div class="env-menu" id="env-menu" hidden>
+              <div class="env-menu-head">
+                <strong>Local environment</strong>
+                <span>Rules, activity and settings stay on this machine.</span>
+              </div>
+              <a class="env-item" href="#settings"
+                ><svg class="icon"><use href="#i-settings" /></svg>Settings</a
+              >
+            </div>
+            <button class="env" id="env" type="button" aria-expanded="false" aria-controls="env-menu">
+              <span class="env-icon"
+                ><svg class="icon"><use href="#i-laptop" /></svg
+              ></span>
+              <span class="env-text"
+                ><span class="env-name">Local environment</span><span class="env-sub">Not signed in</span></span
+              >
+              <svg class="icon env-chev"><use href="#i-chevron" /></svg>
+            </button>
+          </div>
         </div>
       </aside>
 
       <main>
-        <div id="banner"></div>
+        <header class="topbar">
+          <button
+            class="icon-btn"
+            id="nav-toggle"
+            type="button"
+            aria-controls="sidebar"
+            aria-expanded="true"
+            title="Toggle sidebar"
+          >
+            <svg class="icon"><use href="#i-sidebar" /></svg>
+          </button>
+          <span class="divider" aria-hidden="true"></span>
+          <span class="crumb" id="crumb" aria-current="page">Activity</span>
+        </header>
+        <div class="content">
+          <div id="banner"></div>
 
-        <!-- ---------- Activity ---------- -->
-        <section id="page-calls" data-page-section>
-          <div class="page-head">
-            <div>
-              <h1>Activity</h1>
-              <p>Tool calls from connected agent sessions on this machine, grouped by the prompt that triggered it.</p>
-            </div>
-          </div>
-          <div class="card">
-            <div class="toolbar">
-              <label class="search"
-                ><svg class="icon"><use href="#i-search" /></svg
-                ><input type="text" id="f-text" placeholder="Search command, path, project…"
-              /></label>
-              <select id="f-project" title="Project">
-                <option value="">All projects</option>
-              </select>
-              <select id="f-tool">
-                <option value="">All tools</option>
-              </select>
-              <select id="f-decision">
-                <option value="">All decisions</option>
-                <option value="allowed">Allowed</option>
-                <option value="denied">Denied</option>
-              </select>
-            </div>
-            <div id="grouped-view" class="groups"></div>
-            <div class="empty" id="calls-empty" hidden>
-              <svg class="icon"><use href="#i-activity" /></svg>
-              <div>No tool calls yet. Use a connected agent and its hooked calls appear here live.</div>
-            </div>
-          </div>
-          <div class="muted small" id="calls-count"></div>
-        </section>
-
-        <!-- ---------- Token savings ---------- -->
-        <section id="page-savings" data-page-section hidden>
-          <div class="page-head">
-            <div>
-              <h1>Token savings</h1>
-              <p>
-                Each option shortens tool results where the integration supports replacement. <b>On</b> changes what the agent
-                gets, <b>Off</b> leaves it as it is. Codex currently supports tracking and enforcement; reductions apply to Claude
-                Code.
-              </p>
-            </div>
-          </div>
-          <div id="strategies"></div>
-          <p class="muted small">
-            Token counts are estimates (about 4 characters per token). Prompt totals on the Activity page come from Claude Code's
-            own usage data.
-          </p>
-        </section>
-
-        <!-- ---------- Rules ---------- -->
-        <section id="page-rules" data-page-section hidden>
-          <div class="page-head">
-            <div>
-              <h1>Rules</h1>
-              <p>What the agent may and may not do, one policy per group. Open a group to see the rules behind it.</p>
-            </div>
-            <div class="actions">
-              <button class="btn" id="rules-test" title="See which rule and policy decide a tool call">
-                <svg class="icon"><use href="#i-search" /></svg>Test a call…
-              </button>
-              <button class="btn" id="rules-export" title="Download all rule groups as a JSON rule file">
-                <svg class="icon"><use href="#i-download" /></svg>Export
-              </button>
-              <button class="btn" id="rules-import" title="Add or replace rules from a JSON rule file">
-                <svg class="icon"><use href="#i-upload" /></svg>Import…
-              </button>
-              <button class="btn" id="rules-reset" title="Go back to the default rules">Reset to defaults…</button>
-            </div>
-          </div>
-          <div id="defaults-banner"></div>
-          <div class="policy-summary" id="policy-summary"></div>
-
-          <div class="card rules-card">
-            <div class="card-head">
-              <h2>Rule groups</h2>
-              <span class="sub" id="rules-count"></span><span class="grow"></span>
-              <div class="seg" id="rules-effect">
-                <button data-effect="" class="on">All</button><button data-effect="deny">Not allowed</button
-                ><button data-effect="allow">Allowed</button>
+          <!-- ---------- Activity ---------- -->
+          <section id="page-calls" data-page-section>
+            <div class="card">
+              <div class="toolbar">
+                <label class="search"
+                  ><svg class="icon"><use href="#i-search" /></svg
+                  ><input type="text" id="f-text" placeholder="Search command, path, project…"
+                /></label>
+                <select id="f-project" title="Project">
+                  <option value="">All projects</option>
+                </select>
+                <select id="f-tool">
+                  <option value="">All tools</option>
+                </select>
+                <select id="f-decision">
+                  <option value="">All decisions</option>
+                  <option value="allowed">Allowed</option>
+                  <option value="denied">Denied</option>
+                </select>
               </div>
-              <label class="search search-narrow"
-                ><svg class="icon"><use href="#i-search" /></svg><input type="text" id="rules-filter" placeholder="Filter rules…"
-              /></label>
-              <button class="btn sm primary" id="group-new-toggle">
-                <svg class="icon"><use href="#i-plus" /></svg>New group
-              </button>
-            </div>
-            <form class="form group-form" id="group-new" hidden>
-              <input
-                type="text"
-                id="group-new-title"
-                placeholder="The agent is not allowed to use Docker"
-                aria-label="Group title"
-                required
-              />
-              <input type="text" id="group-new-desc" placeholder="Why, and what it covers (optional)" aria-label="Description" />
-              <div class="row">
-                <span class="help-inline">Write the title as one plain sentence. You add the rules in the next step.</span>
-                <span class="grow"></span>
-                <button class="btn" type="button" id="group-new-cancel">Cancel</button>
-                <button class="btn primary" type="submit">Create group</button>
+              <div id="grouped-view" class="groups"></div>
+              <div class="empty" id="calls-empty" hidden>
+                <svg class="icon"><use href="#i-activity" /></svg>
+                <div>No tool calls yet. Use a connected agent and its hooked calls appear here live.</div>
               </div>
-            </form>
-            <div id="rule-groups"></div>
-            <div class="help help-foot">
-              Rules: <code>Tool</code> or <code>Tool(pattern)</code> · <code>*</code> anything · <code>?</code> one character · in
-              paths <code>*</code> stays in a folder, <code>**</code> crosses folders · <code>{cwd}</code> project folder ·
-              <code>{home}</code> home folder · <code>{tmp}</code> temp folder · tool groups <code>Shell</code>,
-              <code>FileRead</code>, <code>FileEdit</code>, <code>File</code>
             </div>
-          </div>
-        </section>
+            <div class="muted small" id="calls-count"></div>
+          </section>
+
+          <!-- ---------- Token savings ---------- -->
+          <section id="page-savings" data-page-section hidden>
+            <div id="strategies"></div>
+            <p class="muted small">
+              Each option shortens tool results where the integration supports replacement. <b>On</b> changes what the agent gets,
+              <b>Off</b> leaves it as it is. Codex currently supports tracking and enforcement; reductions apply to Claude Code.
+              Token counts are estimates (about 4 characters per token). Prompt totals on the Activity page come from Claude
+              Code's own usage data.
+            </p>
+          </section>
+
+          <!-- ---------- Settings (local for now; later set by a managed workspace) ---------- -->
+          <section id="page-settings" data-page-section hidden>
+            <div class="card">
+              <div class="setting">
+                <div class="setting-text">
+                  <b>Rules enforcement</b><span>Enforce blocks denied calls; Monitor only logs them; Off skips the checks.</span>
+                </div>
+                <div class="seg" id="set-mode">
+                  <button type="button" data-mode="enforce">Enforce</button
+                  ><button type="button" data-mode="monitor">Monitor</button><button type="button" data-mode="off">Off</button>
+                </div>
+              </div>
+              <label class="setting">
+                <span class="setting-text"
+                  ><b>Token savings</b
+                  ><span>Shorten tool results for the agent. Off also hides the Token savings page.</span></span
+                >
+                <span class="switch"><input type="checkbox" data-feature="tokenSavings" /><span></span></span>
+              </label>
+              <label class="setting">
+                <span class="setting-text"
+                  ><b>Trace files</b><span>Record the code agents write in each project's .goairside/traces.</span></span
+                >
+                <span class="switch"><input type="checkbox" data-feature="traces" /><span></span></span>
+              </label>
+              <label class="setting">
+                <span class="setting-text"
+                  ><b>Git pipeline report</b
+                  ><span>Add the AI change report to a project's GitHub or GitLab CI with its first trace file.</span></span
+                >
+                <span class="switch"><input type="checkbox" data-feature="pipelines" /><span></span></span>
+              </label>
+            </div>
+            <p class="muted small">
+              These settings apply to every project on this machine. Later, signing in to a managed workspace will set them for
+              your company.
+            </p>
+          </section>
+
+          <!-- ---------- Rules ---------- -->
+          <section id="page-rules" data-page-section hidden>
+            <div class="page-head">
+              <div class="actions">
+                <button class="btn" id="rules-test" title="See which rule and policy decide a tool call">
+                  <svg class="icon"><use href="#i-search" /></svg>Test a call…
+                </button>
+                <button class="btn" id="rules-export" title="Download all rule groups as a JSON rule file">
+                  <svg class="icon"><use href="#i-download" /></svg>Export
+                </button>
+                <button class="btn" id="rules-import" title="Add or replace rules from a JSON rule file">
+                  <svg class="icon"><use href="#i-upload" /></svg>Import…
+                </button>
+                <button class="btn" id="rules-reset" title="Go back to the default rules">Reset to defaults…</button>
+              </div>
+            </div>
+            <div id="defaults-banner"></div>
+            <div class="policy-summary" id="policy-summary"></div>
+
+            <div class="card rules-card">
+              <div class="card-head">
+                <h2>Rule groups</h2>
+                <span class="sub" id="rules-count"></span><span class="grow"></span>
+                <div class="seg" id="rules-effect">
+                  <button data-effect="" class="on">All</button><button data-effect="deny">Not allowed</button
+                  ><button data-effect="allow">Allowed</button>
+                </div>
+                <label class="search search-narrow"
+                  ><svg class="icon"><use href="#i-search" /></svg
+                  ><input type="text" id="rules-filter" placeholder="Filter rules…"
+                /></label>
+                <button class="btn sm primary" id="group-new-toggle">
+                  <svg class="icon"><use href="#i-plus" /></svg>New group
+                </button>
+              </div>
+              <form class="form group-form" id="group-new" hidden>
+                <input
+                  type="text"
+                  id="group-new-title"
+                  placeholder="The agent is not allowed to use Docker"
+                  aria-label="Group title"
+                  required
+                />
+                <input
+                  type="text"
+                  id="group-new-desc"
+                  placeholder="Why, and what it covers (optional)"
+                  aria-label="Description"
+                />
+                <div class="row">
+                  <span class="help-inline">Write the title as one plain sentence. You add the rules in the next step.</span>
+                  <span class="grow"></span>
+                  <button class="btn" type="button" id="group-new-cancel">Cancel</button>
+                  <button class="btn primary" type="submit">Create group</button>
+                </div>
+              </form>
+              <div id="rule-groups"></div>
+              <div class="help help-foot">
+                Rules: <code>Tool</code> or <code>Tool(pattern)</code> · <code>*</code> anything · <code>?</code> one character ·
+                in paths <code>*</code> stays in a folder, <code>**</code> crosses folders · <code>{cwd}</code> project folder ·
+                <code>{home}</code> home folder · <code>{tmp}</code> temp folder · tool groups <code>Shell</code>,
+                <code>FileRead</code>, <code>FileEdit</code>, <code>File</code>
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
 

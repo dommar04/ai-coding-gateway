@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
@@ -553,4 +553,49 @@ test("captured prompts without calls are visible, filterable and reachable by en
     await api("GET", `/api/prompts?project=${encodeURIComponent(join(dir, "prompt-only"))}`)
   ).json()) as unknown[];
   assert.equal(filtered.length, 2);
+});
+
+test("environment settings: features are on by default and can be switched off", async () => {
+  const stats = async () => (await (await api("GET", "/api/stats")).json()) as { features: Record<string, boolean> };
+  assert.deepEqual((await stats()).features, { traces: true, pipelines: true, tokenSavings: true });
+  const res = await api("PUT", "/api/features", { feature: "tokenSavings", on: false });
+  assert.equal(res.status, 200);
+  assert.deepEqual((await stats()).features, { traces: true, pipelines: true, tokenSavings: false });
+  assert.equal((await api("PUT", "/api/features", { feature: "nope", on: false })).status, 400);
+  assert.equal((await api("PUT", "/api/features", { feature: "traces", on: "no" })).status, 400);
+  await api("PUT", "/api/features", { feature: "tokenSavings", on: true });
+});
+
+test("environment settings: the gateway skips token savings, trace files and the CI report when they are off", async () => {
+  const { afterToolCall } = await import("../src/services/gateway");
+  const project = mkdtempSync(join(dir, "project-"));
+  mkdirSync(join(project, ".git"));
+  mkdirSync(join(project, ".github", "workflows"), { recursive: true });
+  const bash = { toolUseId: "red", toolName: "Bash", toolInput: { command: "ls" }, cwd: project, sessionId: "s-red" };
+  const colored = { response: { stdout: "\u001b[31mred\u001b[0m text\n".repeat(20), stderr: "", interrupted: false } };
+  const write = (n: number) => ({
+    toolUseId: `w${n}`,
+    toolName: "Write",
+    toolInput: { file_path: join(project, `a${n}.ts`), content: "export const a = 1;" },
+    cwd: project,
+    sessionId: "1a2b3c4d-0000-0000-0000-000000000000",
+  });
+  const workflow = join(project, ".github", "workflows", "goairside-report.yml");
+
+  assert.ok(afterToolCall(bash, colored).updatedResponse, "on: the colors are removed");
+  store.setFeature("tokenSavings", false);
+  assert.equal(afterToolCall({ ...bash, toolUseId: "red2" }, colored).updatedResponse, undefined);
+
+  store.setFeature("traces", false);
+  afterToolCall(write(1), { response: {} });
+  assert.equal(existsSync(join(project, ".goairside")), false);
+
+  // Traces on, pipelines off: the first trace file, but no CI report.
+  store.setFeature("traces", true);
+  store.setFeature("pipelines", false);
+  afterToolCall(write(2), { response: {} });
+  assert.equal(readdirSync(join(project, ".goairside", "traces")).length, 1);
+  assert.equal(existsSync(workflow), false);
+
+  for (const f of ["traces", "pipelines", "tokenSavings"] as const) store.setFeature(f, true);
 });

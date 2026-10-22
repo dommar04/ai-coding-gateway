@@ -13,11 +13,14 @@ export interface TextEdit {
   after: string;
 }
 
-/** Writes the call's added content to the trace. Returns how many change lines were written. */
-export function traceToolCall(call: ToolCall): number {
+/**
+ * Writes the call's added content to the trace. Returns how many change lines were written.
+ * `pipelines`: whether the project's first trace also adds the report to the repository's CI.
+ */
+export function traceToolCall(call: ToolCall, { pipelines = true } = {}): number {
   const edits = textEdits(call);
   if (!edits.length) return 0;
-  const trace = new TraceFile(call.cwd, { id: call.sessionId, agent: call.integration ?? "claude" });
+  const trace = new TraceFile(call.cwd, { id: call.sessionId, agent: call.integration ?? "claude" }, { pipelines });
   let written = 0;
   for (const edit of edits) {
     const seg = addedSeg(tokenize(edit.before), tokenize(edit.after)).map(encodeSegment);

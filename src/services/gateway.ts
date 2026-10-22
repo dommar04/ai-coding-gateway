@@ -4,7 +4,7 @@ import { emitEvent } from "./activity/events";
 import { completeCall, insertCall } from "../storage/tables/tool-calls";
 import { forgetContext, reduceToolResult, type ReduceResult } from "./reduction";
 import { inputTokens } from "./reduction/adapters";
-import { effectiveMode, getMode, modeOverride } from "./settings";
+import { effectiveMode, features, getMode, modeOverride } from "./settings";
 import { checkToolSecurity, type SecurityCheck } from "./tool-security";
 import { gatewayErrorMessage } from "./tool-security/messages";
 import { traceToolCall } from "./trace/handler";
@@ -13,9 +13,10 @@ import { traceToolCall } from "./trace/handler";
 //
 //   before a tool call:  1. tool security (unless mode is "off")   → may block the call
 //                        2. log the call
-//   after a tool call:   1. result reduction                        → may shrink the result
+//   after a tool call:   1. result reduction (feature tokenSavings) → may shrink the result
 //                        2. log result and token figures
-//                        3. trace what the agent wrote into the project (.goairside/traces)
+//                        3. trace what the agent wrote into the project (.goairside/traces; feature traces,
+//                           and feature pipelines for the CI report setup on a project's first trace)
 //   context reset:       forget what the agent had already read
 //
 // Entry points (Claude Code hooks, ...) translate their payloads into a ToolCall and back.
@@ -73,7 +74,7 @@ export function afterToolCall(call: ToolCall, result: ToolResult, capabilities: 
   // 1. Result reduction. A broken strategy must never cost the agent its tool output.
   let reduced: ReduceResult | null = null;
   try {
-    reduced = reduceToolResult(call, result.response, capabilities.replaceOutput !== false);
+    reduced = reduceToolResult(call, result.response, capabilities.replaceOutput !== false && features().tokenSavings);
   } catch (err) {
     logError("reduce", err);
   }
@@ -101,7 +102,8 @@ export function afterToolCall(call: ToolCall, result: ToolResult, capabilities: 
 
   // 3. Trace. Like reduction, a failure here must never affect the tool call.
   try {
-    traceToolCall(call);
+    const on = features();
+    if (on.traces) traceToolCall(call, { pipelines: on.pipelines });
   } catch (err) {
     logError("trace", err);
   }
