@@ -4,16 +4,18 @@ import { resolveRange } from "./helper/ci";
 import {
   checkHistory,
   defaultBranch,
+  emptyTree,
   fileAtHead,
   rangeDiff,
   repoRoot,
   traceFiles,
   traceInRange,
   type FileDiff,
+  type Range,
 } from "./helper/git";
 import { renderReport, type ReportData, type ReportFile } from "./html/html";
 import { writeGitHubOutput } from "./github/github";
-import { writeGitLabOutput } from "./gitlab/gitlab";
+import { writeCodeQuality, type AiFile } from "./gitlab/gitlab";
 import { matchFile } from "./helper/matcher";
 import { readTrace, type TracedChange } from "./helper/traces";
 
@@ -23,7 +25,8 @@ import { readTrace, type TracedChange } from "./helper/traces";
 //   3. per changed file: find the recorded AI content in the file at the head commit
 //   4. write the HTML report
 //   5. in GitHub Actions: the run's summary, and a check with one annotation per AI file in the pull request;
-//      in GitLab CI: a Code Quality report with one finding per AI line block, for the merge request
+//      in GitLab CI: a Code Quality report of all AI code at the head commit, one finding per AI line block
+//      (branch pipelines write only that report: runCodeQualityReport)
 // Runs locally (git and the files in the checkout). The only network access is that check, to GitHub
 // itself (github/checks.ts), and only when the workflow grants `checks: write` and passes the token.
 
@@ -89,8 +92,38 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
 
   // 5. CI output
   await writeGitHubOutput(data, range.head, options.env ?? process.env);
-  writeGitLabOutput(files, out, options.env ?? process.env);
+  if ((options.env ?? process.env).GITLAB_CI === "true") writeCodeQuality(aiCodeAt(range.head, root), out);
   return { file, data };
+}
+
+/** Only the GitLab Code Quality report, of all AI code at `head` (default HEAD). Returns its path. */
+export function runCodeQualityReport(options: Pick<ReportOptions, "head" | "out" | "cwd"> = {}): string {
+  const cwd = options.cwd ?? process.cwd();
+  const root = repoRoot(cwd);
+  const out = resolve(cwd, options.out ?? "goairside-report");
+  mkdirSync(out, { recursive: true });
+  return writeCodeQuality(aiCodeAt(options.head ?? "HEAD", root), out);
+}
+
+/** All AI code at `head`: every change in every trace file there, matched against the whole file. */
+function aiCodeAt(head: string, root: string): AiFile[] {
+  const range: Range = { base: emptyTree(root), head, dots: ".." };
+  const changes = traceFiles(range, root).flatMap((file) => readTrace(file, fileAtHead(range, file, root)).changes);
+  return [...new Set(changes.map((c) => c.path))].flatMap((path) => {
+    let content: string;
+    try {
+      content = fileAtHead(range, path, root);
+    } catch {
+      return []; // Deleted or renamed since.
+    }
+    const lines = new Set(content.split("\n").map((_, i) => i + 1));
+    const { spans } = matchFile(
+      content,
+      lines,
+      changes.filter((c) => c.path === path)
+    );
+    return spans.length ? [{ path, content, spans }] : [];
+  });
 }
 
 function addedLines(f: FileDiff): Set<number> {

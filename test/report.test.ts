@@ -11,10 +11,10 @@ import { readTrace, type TracedChange } from "../src/services/report/helper/trac
 import { matchFile, type AiSpan } from "../src/services/report/helper/matcher";
 import { encodeSegment, hashToken, tokenize } from "../src/services/trace/helper/hasher";
 import { renderReport, type ReportFile } from "../src/services/report/html/html";
-import { runReport } from "../src/services/report/handler";
+import { runCodeQualityReport, runReport } from "../src/services/report/handler";
 import { fileAnnotations, stepSummary, writeGitHubOutput } from "../src/services/report/github/github";
 import { lineRanges } from "../src/services/report/helper/lines";
-import { CODE_QUALITY_FILE, codeQualityFindings, writeGitLabOutput } from "../src/services/report/gitlab/gitlab";
+import { CODE_QUALITY_FILE, codeQualityFindings } from "../src/services/report/gitlab/gitlab";
 import { createCheck } from "../src/services/report/github/checks";
 
 const root = mkdtempSync(join(tmpdir(), "apichap-report-"));
@@ -560,12 +560,12 @@ test("github: a small but present AI share shows as <1%, not 0%", () => {
 
 // GitLab output
 
-test("gitlab: one info finding per block of AI lines, on its first line", () => {
+test("gitlab: one info finding per block of AI lines, on its first line, identified by its code", () => {
   const opus = traced(["x"], "2026-10-21T11:14:24Z", "claude-opus-5-5");
   const sonnet = traced(["y"], "2026-10-21T11:14:24Z", "claude-sonnet-5-5");
+  const content = Array.from({ length: 20 }, (_, i) => (i === 19 ? "x = 1" : `line ${i + 1}`)).join("\n");
   const findings = codeQualityFindings([
-    reportFile({ path: "a.ts", spans: [span(12, opus), span(13, opus), span(14, opus), span(20, sonnet)] }),
-    reportFile({ path: "human.ts" }),
+    { path: "a.ts", content, spans: [span(12, opus), span(13, opus), span(14, opus), span(20, sonnet)] },
   ]);
   assert.deepEqual(
     findings.map((f) => [f.location.path, f.location.lines.begin, f.severity, f.description]),
@@ -575,19 +575,29 @@ test("gitlab: one info finding per block of AI lines, on its first line", () => 
     ]
   );
   assert.notEqual(findings[0].fingerprint, findings[1].fingerprint);
-  assert.equal(codeQualityFindings([reportFile({ path: "a.ts", spans: [span(12, opus)] })])[0].fingerprint.length, 64);
+  // The same code twice in a file: two findings, two fingerprints.
+  const twice = codeQualityFindings([{ path: "b.ts", content: "x = 1\n\nx = 1\n", spans: [span(1, opus), span(3, opus)] }]);
+  assert.notEqual(twice[0].fingerprint, twice[1].fingerprint);
 });
 
-test("gitlab: the Code Quality report is written only in GitLab CI, with findings only in merge requests", () => {
-  const files = [reportFile({ spans: [span(1, traced(["x"]))] })];
-  const out = mkdtempSync(join(root, "gitlab-"));
-  const written = () => JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8"));
-  writeGitLabOutput(files, out, {});
-  assert.equal(existsSync(join(out, CODE_QUALITY_FILE)), false);
-  writeGitLabOutput(files, out, { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "merge_request_event" });
-  assert.equal(written().length, 1);
-  writeGitLabOutput(files, out, { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "push" });
-  assert.deepEqual(written(), []);
+test("gitlab: the Code Quality report has all AI code at the commit; moved code keeps its fingerprint", async () => {
+  const dir = makeRepo();
+  const out = join(dir, "out");
+  const report = () => JSON.parse(readFileSync(runCodeQualityReport({ cwd: dir, out }), "utf8"));
+  const before = report();
+  assert.deepEqual(
+    before.map((f: any) => [f.location.path, f.location.lines.begin]),
+    [["b.ts", 1]]
+  );
+
+  // A human adds a line above the AI code, on a new branch: the merge request report lists it all, the same.
+  execFileSync("git", ["checkout", "-q", "-b", "next"], { cwd: dir });
+  writeFileSync(join(dir, "b.ts"), "// by a human\nnew file\n");
+  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "next"], { cwd: dir });
+  await runReport({ cwd: dir, out, base: "feature", env: { GITLAB_CI: "true" } });
+  const after = JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8"));
+  assert.equal(after[0].location.lines.begin, 2);
+  assert.equal(after[0].fingerprint, before[0].fingerprint);
 });
 
 test("the report's only network code is the GitHub check", () => {

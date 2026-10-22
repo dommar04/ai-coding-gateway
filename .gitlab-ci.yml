@@ -1,10 +1,15 @@
-# The AI change report for every merge request: which new code AI coding agents wrote, from the
-# traces in .goairside/. This repository runs the report from its own source; other projects run
-# the published package instead: npx -y apichap-ai-coding-gateway@<version> report
+# The AI change report: which code AI coding agents wrote, from the traces in .goairside/. This
+# repository runs the report from its own source; other projects run the published package instead:
+# npx -y apichap-ai-coding-gateway@<version> report
+#   merge requests: the HTML report of the merge request, and a Code Quality report of all AI code
+#   branches:       only that Code Quality report. GitLab shows a merge request the AI code that is new
+#                   compared with its target branch's report, so every branch needs one.
 goairside-report:
   image: node:22
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # Also branches with an open merge request: they can be another merge request's target (develop → main).
+    - if: $CI_COMMIT_BRANCH
   variables:
     # The report compares the merge request with its target branch, so it needs the history.
     GIT_DEPTH: 0
@@ -15,16 +20,4 @@ goairside-report:
     paths: [goairside-report/]
     reports:
       # Shows the AI code blocks in the merge request widget and the "Changes" tab.
-      codequality: goairside-report/gl-code-quality.json
-
-# GitLab shows a merge request only the findings that are new compared with its target branch's report,
-# and nothing without one. So every branch commit gets an empty report: any branch can be a target then.
-goairside-baseline:
-  image: alpine
-  rules:
-    - if: $CI_COMMIT_BRANCH
-  script:
-    - mkdir -p goairside-report && echo "[]" > goairside-report/gl-code-quality.json
-  artifacts:
-    reports:
       codequality: goairside-report/gl-code-quality.json

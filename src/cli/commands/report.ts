@@ -7,7 +7,13 @@ export async function runReport(args: string[]): Promise<void> {
   const text = (name: string) => (typeof flags[name] === "string" ? (flags[name] as string) : undefined);
 
   // Loaded lazily so the hooks never pay for the report code.
-  const { runReport: report } = await import("../../services/report/handler");
+  const { runReport: report, runCodeQualityReport } = await import("../../services/report/handler");
+  const { gitLabBranchPipeline } = await import("../../services/report/gitlab/gitlab");
+  if (gitLabBranchPipeline()) {
+    // No merge request to report on: only the AI code at this commit, for merge requests into this branch.
+    console.log(`goAirside Code Quality report: ${runCodeQualityReport({ head: text("head"), out: text("out") })}`);
+    return;
+  }
   const { file, data } = await report({ base: text("base"), head: text("head"), out: text("out") });
 
   for (const warning of data.warnings) console.error(`Warning: ${warning}`);

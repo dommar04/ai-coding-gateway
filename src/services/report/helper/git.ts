@@ -91,6 +91,11 @@ export function checkHistory(range: Range, cwd: string): void {
   }
 }
 
+/** git's empty tree: a range from it to a commit adds every file the commit has. */
+export function emptyTree(cwd: string): string {
+  return git(["hash-object", "-t", "tree", "--stdin"], cwd).trim();
+}
+
 /** The trace files the range adds or appends to (paths relative to the repository root). */
 export function traceFiles(range: Range, cwd: string): string[] {
   return git(["diff", "--name-only", "--diff-filter=AM", spec(range), "--", TRACE_FILES], cwd)
