@@ -2,15 +2,17 @@ import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AiSpan } from "../helper/matcher";
-import { lineBlocks } from "../helper/lines";
+import type { TracedChange } from "../helper/traces";
+import { lineRanges } from "../helper/lines";
 
 // The report inside GitLab: a Code Quality report (CodeClimate JSON) that the merge request widget and
 // the "Changes" tab show. The job declares it as an artifact:
 //   artifacts: { reports: { codequality: goairside-report/gl-code-quality.json } }
 // GitLab shows a merge request only the findings that are new compared with its target branch's report,
-// and nothing without one. So every pipeline, merge request or branch, reports all AI code at its commit,
-// and GitLab works out what a merge request adds. The fingerprint is how GitLab tells two findings are the
-// same: it is the block's code, so AI code that moved down a few lines is still the same finding.
+// and nothing without one. So every pipeline, merge request or branch, reports every recorded AI change at
+// its commit, and GitLab works out which ones a merge request adds. The fingerprint (how GitLab tells two
+// findings are the same) is the change itself: traces are append-only, so it never changes. The line only
+// places the marker: where the change's code is now, or line 1 once a human rewrote it.
 
 export const CODE_QUALITY_FILE = "gl-code-quality.json";
 
@@ -22,10 +24,10 @@ export interface CodeQualityFinding {
   location: { path: string; lines: { begin: number } };
 }
 
-/** A file's AI code: its content at the commit and the spans matched in it. */
+/** A file that exists at the commit: the AI changes recorded for it, and the spans of them found in it. */
 export interface AiFile {
   path: string;
-  content: string;
+  changes: TracedChange[];
   spans: AiSpan[];
 }
 
@@ -41,27 +43,20 @@ export function writeCodeQuality(files: AiFile[], outDir: string): string {
   return file;
 }
 
-/** One finding per block of consecutive AI lines, on its first line. */
+/** One finding per recorded change, on its first line still found. */
 export function codeQualityFindings(files: AiFile[]): CodeQualityFinding[] {
-  return files.flatMap((f) => {
-    const lines = [...new Set(f.spans.map((s) => s.line))].sort((a, b) => a - b);
-    const text = f.content.split("\n");
-    const seen = new Map<string, number>();
-    return lineBlocks(lines).map(([begin, end]) => {
-      const models = [
-        ...new Set(f.spans.filter((s) => s.line >= begin && s.line <= end).map((s) => s.change.model ?? "unknown model")),
-      ];
-      const code = text.slice(begin - 1, end).join("\n");
-      // The same code twice in a file still needs two fingerprints.
-      const copy = (seen.get(code) ?? 0) + 1;
-      seen.set(code, copy);
+  return files.flatMap((f) =>
+    f.changes.map((change) => {
+      const lines = [...new Set(f.spans.filter((s) => s.change === change).map((s) => s.line))].sort((a, b) => a - b);
+      const where = lines.length ? `${lines.length > 1 ? "lines" : "line"} ${lineRanges(lines)}` : "code changed since";
+      const id = JSON.stringify([change.session, change.at, change.path, change.tool, change.segments]);
       return {
-        description: `AI-generated code: ${begin === end ? `line ${begin}` : `lines ${begin}–${end}`} · ${models.join(", ")}`,
+        description: `AI-generated code: ${where} · ${change.model ?? "unknown model"}`,
         check_name: "goairside-ai-code",
-        fingerprint: createHash("sha256").update(`${f.path}\n${copy}\n${code}`).digest("hex"),
+        fingerprint: createHash("sha256").update(id).digest("hex"),
         severity: "info" as const,
-        location: { path: f.path, lines: { begin } },
+        location: { path: f.path, lines: { begin: lines[0] ?? 1 } },
       };
-    });
-  });
+    })
+  );
 }

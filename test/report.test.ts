@@ -560,44 +560,60 @@ test("github: a small but present AI share shows as <1%, not 0%", () => {
 
 // GitLab output
 
-test("gitlab: one info finding per block of AI lines, on its first line, identified by its code", () => {
+test("gitlab: one info finding per recorded change, not combined with its neighbours, on its first line", () => {
   const opus = traced(["x"], "2026-10-21T11:14:24Z", "claude-opus-5-5");
-  const sonnet = traced(["y"], "2026-10-21T11:14:24Z", "claude-sonnet-5-5");
-  const content = Array.from({ length: 20 }, (_, i) => (i === 19 ? "x = 1" : `line ${i + 1}`)).join("\n");
+  const sonnet = traced(["y"], "2026-10-21T11:15:00Z", "claude-sonnet-5-5");
+  const rewritten = traced(["z"], "2026-10-21T11:16:00Z", "claude-opus-5-5");
   const findings = codeQualityFindings([
-    { path: "a.ts", content, spans: [span(12, opus), span(13, opus), span(14, opus), span(20, sonnet)] },
+    {
+      path: "a.ts",
+      changes: [opus, sonnet, rewritten],
+      spans: [span(12, opus), span(13, opus), span(14, sonnet), span(20, opus)],
+    },
   ]);
   assert.deepEqual(
     findings.map((f) => [f.location.path, f.location.lines.begin, f.severity, f.description]),
     [
-      ["a.ts", 12, "info", "AI-generated code: lines 12–14 · claude-opus-5-5"],
-      ["a.ts", 20, "info", "AI-generated code: line 20 · claude-sonnet-5-5"],
+      ["a.ts", 12, "info", "AI-generated code: lines 12–13, 20 · claude-opus-5-5"],
+      ["a.ts", 14, "info", "AI-generated code: line 14 · claude-sonnet-5-5"],
+      // Its code is not found anymore: still listed, so GitLab doesn't call it fixed.
+      ["a.ts", 1, "info", "AI-generated code: code changed since · claude-opus-5-5"],
     ]
   );
-  assert.notEqual(findings[0].fingerprint, findings[1].fingerprint);
-  // The same code twice in a file: two findings, two fingerprints.
-  const twice = codeQualityFindings([{ path: "b.ts", content: "x = 1\n\nx = 1\n", spans: [span(1, opus), span(3, opus)] }]);
-  assert.notEqual(twice[0].fingerprint, twice[1].fingerprint);
+  assert.equal(new Set(findings.map((f) => f.fingerprint)).size, 3);
 });
 
-test("gitlab: the Code Quality report has all AI code at the commit; moved code keeps its fingerprint", async () => {
+test("gitlab: the Code Quality report has every AI change at the commit, each keeping its fingerprint", async () => {
   const dir = makeRepo();
   const out = join(dir, "out");
-  const report = () => JSON.parse(readFileSync(runCodeQualityReport({ cwd: dir, out }), "utf8"));
+  const commit = (text: string) => {
+    writeFileSync(join(dir, "b.ts"), text);
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "next"], { cwd: dir });
+  };
+  const report = () => JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8"));
+  runCodeQualityReport({ cwd: dir, out });
   const before = report();
   assert.deepEqual(
     before.map((f: any) => [f.location.path, f.location.lines.begin]),
     [["b.ts", 1]]
   );
 
-  // A human adds a line above the AI code, on a new branch: the merge request report lists it all, the same.
+  // A human adds a line above the AI code, on a new branch: the merge request report has it, moved.
   execFileSync("git", ["checkout", "-q", "-b", "next"], { cwd: dir });
-  writeFileSync(join(dir, "b.ts"), "// by a human\nnew file\n");
-  execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "next"], { cwd: dir });
+  commit("// by a human\nnew file\n");
   await runReport({ cwd: dir, out, base: "feature", env: { GITLAB_CI: "true" } });
-  const after = JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8"));
-  assert.equal(after[0].location.lines.begin, 2);
-  assert.equal(after[0].fingerprint, before[0].fingerprint);
+  assert.deepEqual(
+    report().map((f: any) => [f.location.lines.begin, f.fingerprint]),
+    [[2, before[0].fingerprint]]
+  );
+
+  // A human rewrites it: still there, on line 1.
+  commit("// by a human\nrewritten\n");
+  runCodeQualityReport({ cwd: dir, out });
+  assert.deepEqual(
+    report().map((f: any) => [f.location.lines.begin, f.description, f.fingerprint]),
+    [[1, "AI-generated code: code changed since · m1", before[0].fingerprint]]
+  );
 });
 
 test("the report's only network code is the GitHub check", () => {

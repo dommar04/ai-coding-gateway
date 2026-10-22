@@ -105,7 +105,7 @@ export function runCodeQualityReport(options: Pick<ReportOptions, "head" | "out"
   return writeCodeQuality(aiCodeAt(options.head ?? "HEAD", root), out);
 }
 
-/** All AI code at `head`: every change in every trace file there, matched against the whole file. */
+/** All AI changes at `head`: every change in every trace file there, matched against the whole file for its lines. */
 function aiCodeAt(head: string, root: string): AiFile[] {
   const range: Range = { base: emptyTree(root), head, dots: ".." };
   const changes = traceFiles(range, root).flatMap((file) => readTrace(file, fileAtHead(range, file, root)).changes);
@@ -116,13 +116,9 @@ function aiCodeAt(head: string, root: string): AiFile[] {
     } catch {
       return []; // Deleted or renamed since.
     }
+    const own = changes.filter((c) => c.path === path);
     const lines = new Set(content.split("\n").map((_, i) => i + 1));
-    const { spans } = matchFile(
-      content,
-      lines,
-      changes.filter((c) => c.path === path)
-    );
-    return spans.length ? [{ path, content, spans }] : [];
+    return [{ path, changes: own, spans: matchFile(content, lines, own).spans }];
   });
 }
 
