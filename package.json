@@ -29,6 +29,7 @@
   "files": [
     "dist",
     "rules",
+    "pipeline",
     "README.md",
     "LICENSE"
   ],

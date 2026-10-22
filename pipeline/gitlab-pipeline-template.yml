@@ -1,5 +1,5 @@
-# Template: the goAirside AI change report for a GitLab project. Copy this job into the project's
-# .gitlab-ci.yml. It reports which code AI coding agents wrote, from the traces in .goairside/:
+# Template: the goAirside AI change report for a GitLab project, as .gitlab/goairside-report.yml, which
+# .gitlab-ci.yml includes. It reports which code AI coding agents wrote, from the traces in .goairside/:
 #   merge requests: the HTML report of the merge request, and a Code Quality report of all AI code
 #   branches:       only that Code Quality report. GitLab shows a merge request the AI code that is new
 #                   compared with its target branch's report, so every branch needs one.

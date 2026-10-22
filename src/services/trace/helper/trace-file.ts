@@ -1,9 +1,11 @@
-import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { packageVersion } from "../../../integrations/shared/settings";
+import { setUpPipelines } from "../../pipeline/pipelines";
 
 // One trace file per agent session in <project>/.goairside/traces (format: docs/trace-format.md).
 // Every hook call is its own process, so the file is found again by the session id in its name.
+// The project's first trace also adds the AI change report to the repository's CI (pipeline/pipelines.ts).
 
 export const TRACE_FORMAT_VERSION = 1;
 export const TOKENIZER_VERSION = 1;
@@ -73,7 +75,9 @@ export class TraceFile {
   }
 
   private create(at: Date): string {
+    const firstTrace = !existsSync(join(this.projectRoot, ".goairside"));
     mkdirSync(this.dir, { recursive: true });
+    if (firstTrace) setUpPipelines(this.projectRoot);
     const stamp = at.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
     const file = join(this.dir, `${stamp}_${this.session.id.slice(0, 8)}.jsonl`);
     const header = {

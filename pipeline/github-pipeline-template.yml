@@ -1,8 +1,7 @@
+# Template: the goAirside AI change report for a GitHub project, as .github/workflows/goairside-report.yml.
+# For every pull request: which new code AI coding agents wrote, from the traces in .goairside/.
 name: goAirside report
 
-# The AI change report for every pull request: which new code AI coding agents wrote, from the
-# traces in .goairside/. This repository runs the report from its own source; other projects run
-# the published package instead: npx -y apichap-ai-coding-gateway@<version> report
 on:
   pull_request:
 
@@ -23,10 +22,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
       - name: AI change report
-        run: npx tsx src/main.ts report --out goairside-report
+        # Pin a version (apichap-ai-coding-gateway@1.2.3) for the same results on every run.
+        run: npx -y apichap-ai-coding-gateway@latest report --out goairside-report
         env:
           # Steps don't get the token automatically; the report uses it only for the check (to GitHub).
           GITHUB_TOKEN: ${{ github.token }}
