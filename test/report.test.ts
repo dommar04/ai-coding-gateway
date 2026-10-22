@@ -555,13 +555,16 @@ test("gitlab: one info finding per block of AI lines, on its first line", () => 
   assert.equal(codeQualityFindings([reportFile({ path: "a.ts", spans: [span(12, opus)] })])[0].fingerprint.length, 64);
 });
 
-test("gitlab: the Code Quality report is written only in GitLab CI", () => {
+test("gitlab: the Code Quality report is written only in GitLab CI, with findings only in merge requests", () => {
   const files = [reportFile({ spans: [span(1, traced(["x"]))] })];
   const out = mkdtempSync(join(root, "gitlab-"));
+  const written = () => JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8"));
   writeGitLabOutput(files, out, {});
   assert.equal(existsSync(join(out, CODE_QUALITY_FILE)), false);
-  writeGitLabOutput(files, out, { GITLAB_CI: "true" });
-  assert.equal(JSON.parse(readFileSync(join(out, CODE_QUALITY_FILE), "utf8")).length, 1);
+  writeGitLabOutput(files, out, { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "merge_request_event" });
+  assert.equal(written().length, 1);
+  writeGitLabOutput(files, out, { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "push" });
+  assert.deepEqual(written(), []);
 });
 
 test("the report's only network code is the GitHub check", () => {

@@ -7,6 +7,9 @@ import { lineBlocks } from "../helper/lines";
 // The report inside GitLab: a Code Quality report (CodeClimate JSON) that the merge request widget and
 // the "Changes" tab show. The job declares it as an artifact:
 //   artifacts: { reports: { codequality: goairside-report/gl-code-quality.json } }
+// GitLab shows only the findings that are new compared with the target branch's report, and nothing
+// without one. So merge requests report their AI code and every other pipeline an empty report: the
+// target branch then has one to compare with, and it never lists AI code the merge request didn't add.
 
 export const CODE_QUALITY_FILE = "gl-code-quality.json";
 
@@ -18,10 +21,11 @@ export interface CodeQualityFinding {
   location: { path: string; lines: { begin: number } };
 }
 
-/** Writes the Code Quality report into `outDir`, when running in GitLab CI. */
+/** Writes the Code Quality report into `outDir`, when running in GitLab CI: empty outside merge requests. */
 export function writeGitLabOutput(files: ReportFile[], outDir: string, env: NodeJS.ProcessEnv = process.env): void {
   if (env.GITLAB_CI !== "true") return;
-  writeFileSync(join(outDir, CODE_QUALITY_FILE), JSON.stringify(codeQualityFindings(files), null, 2));
+  const findings = env.CI_PIPELINE_SOURCE === "merge_request_event" ? codeQualityFindings(files) : [];
+  writeFileSync(join(outDir, CODE_QUALITY_FILE), JSON.stringify(findings, null, 2));
 }
 
 /** One finding per block of consecutive AI lines, on its first line. */

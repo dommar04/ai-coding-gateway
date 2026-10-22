@@ -3,7 +3,6 @@
 # the published package instead: npx -y apichap-ai-coding-gateway@<version> report
 goairside-report:
   image: node:22
-  # Only merge requests: GitLab compares the report with the target branch's, so main has none.
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
@@ -16,4 +15,16 @@ goairside-report:
     paths: [goairside-report/]
     reports:
       # Shows the AI code blocks in the merge request widget and the "Changes" tab.
+      codequality: goairside-report/gl-code-quality.json
+
+# GitLab shows a merge request only the findings that are new compared with its target branch's report,
+# and nothing without one. So every branch commit gets an empty report: any branch can be a target then.
+goairside-baseline:
+  image: alpine
+  rules:
+    - if: $CI_COMMIT_BRANCH
+  script:
+    - mkdir -p goairside-report && echo "[]" > goairside-report/gl-code-quality.json
+  artifacts:
+    reports:
       codequality: goairside-report/gl-code-quality.json
