@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { checkHistory, fileAtHead, newTraceFiles, parseDiff, rangeDiff } from "../src/services/report/helper/git";
+import { checkHistory, fileAtHead, parseDiff, rangeDiff, traceFiles } from "../src/services/report/helper/git";
 import { resolveRange } from "../src/services/report/helper/ci";
 import { readTrace, type TracedChange } from "../src/services/report/helper/traces";
 import { matchFile, type AiSpan } from "../src/services/report/helper/matcher";
@@ -72,7 +72,7 @@ function makeRepo(): string {
 
 test("git: the range's new trace files, also in subfolders", () => {
   const dir = makeRepo();
-  assert.deepEqual(newTraceFiles({ base: "main", head: "feature", dots: "..." }, dir).sort(), [
+  assert.deepEqual(traceFiles({ base: "main", head: "feature", dots: "..." }, dir).sort(), [
     ".goairside/traces/2026-10-21T09-00-00Z_s1.jsonl",
     "pkg/.goairside/traces/2026-10-21T09-00-00Z_s2.jsonl",
   ]);
@@ -389,6 +389,29 @@ test("report: from a branch with traces to index.html, locally against the defau
   );
   assert.equal(data.missing, 0);
   assert.match(readFileSync(file, "utf8"), /<mark title="m1 · Edit · [^"]+">new file<\/mark>/);
+});
+
+test("report: a session that goes on in a trace file main already has counts only its new changes", async () => {
+  const dir = makeRepo();
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.autocrlf=false", ...args], { cwd: dir });
+  git("checkout", "-q", "main");
+  git("merge", "-q", "--no-ff", "-m", "merge", "feature");
+  git("checkout", "-q", "-b", "next");
+  const trace = join(dir, ".goairside/traces/2026-10-21T09-00-00Z_s1.jsonl");
+  writeFileSync(trace, readFileSync(trace, "utf8") + changeLine("c.ts", "hello gitlab") + "\n");
+  writeFileSync(join(dir, "c.ts"), "hello gitlab\n");
+  git("add", ".");
+  git("commit", "-q", "-m", "next");
+
+  const { data } = await runReport({ cwd: dir, out: join(dir, "out"), env: {} });
+  assert.equal(data.sessions, 1);
+  assert.deepEqual(
+    data.files.map((f) => [f.path, f.aiTokens, f.addedTokens]),
+    [["c.ts", 2, 2]]
+  );
+  // b.ts's change is in main already: not "no longer present" here.
+  assert.equal(data.missing, 0);
 });
 
 test("report: the CLI prints a summary and writes the report", () => {

@@ -1,7 +1,16 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveRange } from "./helper/ci";
-import { checkHistory, defaultBranch, fileAtHead, newTraceFiles, rangeDiff, repoRoot, type FileDiff } from "./helper/git";
+import {
+  checkHistory,
+  defaultBranch,
+  fileAtHead,
+  rangeDiff,
+  repoRoot,
+  traceFiles,
+  traceInRange,
+  type FileDiff,
+} from "./helper/git";
 import { renderReport, type ReportData, type ReportFile } from "./html/html";
 import { writeGitHubOutput } from "./github/github";
 import { writeGitLabOutput } from "./gitlab/gitlab";
@@ -10,7 +19,7 @@ import { readTrace, type TracedChange } from "./helper/traces";
 
 // The AI change report for a merge request or push (or, locally, the current branch):
 //   1. which commits to compare (CI, --base, or the default branch)
-//   2. the agent traces those commits add, and their diff
+//   2. the agent trace lines those commits add, and their diff
 //   3. per changed file: find the recorded AI content in the file at the head commit
 //   4. write the HTML report
 //   5. in GitHub Actions: the run's summary, and a check with one annotation per AI file in the pull request;
@@ -45,9 +54,9 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
   // 2. Traces and diff
   const warnings: string[] = [];
   const changes: TracedChange[] = [];
-  const traceFiles = newTraceFiles(range, root);
-  for (const file of traceFiles) {
-    const read = readTrace(file, fileAtHead(range, file, root));
+  const traces = traceFiles(range, root);
+  for (const file of traces) {
+    const read = readTrace(file, traceInRange(range, file, root));
     changes.push(...read.changes);
     warnings.push(...read.warnings);
   }
@@ -69,7 +78,7 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
     subject: range.label ?? `${range.base}${range.dots}${range.head}`,
     generatedAt: options.now ?? new Date(),
     files,
-    sessions: traceFiles.length,
+    sessions: traces.length,
     missing: files.reduce((n, f) => n + f.missing, elsewhere),
     warnings,
   };

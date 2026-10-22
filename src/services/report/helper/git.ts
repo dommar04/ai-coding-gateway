@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-// What a range of commits changed, read with git: the trace files it adds, its diff, and file contents.
+// What a range of commits changed, read with git: the trace lines it adds, its diff, and file contents.
 // Knows nothing about CI systems; ci.ts decides which commits to compare.
 
 // Trace files anywhere in the repository (a project can be a subfolder), and the folders to leave out of the diff.
@@ -91,11 +91,22 @@ export function checkHistory(range: Range, cwd: string): void {
   }
 }
 
-/** The trace files the range adds (paths relative to the repository root). */
-export function newTraceFiles(range: Range, cwd: string): string[] {
-  return git(["diff", "--name-only", "--diff-filter=A", spec(range), "--", TRACE_FILES], cwd)
+/** The trace files the range adds or appends to (paths relative to the repository root). */
+export function traceFiles(range: Range, cwd: string): string[] {
+  return git(["diff", "--name-only", "--diff-filter=AM", spec(range), "--", TRACE_FILES], cwd)
     .split("\n")
     .filter(Boolean);
+}
+
+/**
+ * A trace file as the range sees it: its session line and only the lines the range appended. A session
+ * goes on in the same file across commits, and its earlier changes belong to earlier merge requests.
+ */
+export function traceInRange(range: Range, path: string, cwd: string): string {
+  const session = fileAtHead(range, path, cwd).split("\n", 1)[0];
+  const [diff] = parseDiff(git(["diff", "-U0", "--no-color", "--no-ext-diff", spec(range), "--", path], cwd));
+  const added = diff?.hunks.flatMap((h) => h.lines.filter((l) => l.type === "add").map((l) => l.text)) ?? [];
+  return [session, ...added.filter((l) => l !== session)].join("\n");
 }
 
 /** The diff with 3 lines of context, without the trace files. Deleted and binary files are left out. */
