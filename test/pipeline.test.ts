@@ -73,10 +73,16 @@ test("pipeline: the GitLab job gets a stage the project has", () => {
     "pre-build"
   );
   assert.equal(gitLabStage('stages: [".pre", build, deploy]\n'), "build");
+  // Files saved on Windows: "\r\n" and a byte order mark.
+  assert.equal(gitLabStage("﻿stages:\r\n  - pre-build\r\n  - build\r\n  - deploy\r\n"), "pre-build");
 
-  const dir = repo({ ".gitlab-ci.yml": "stages:\n  - build\n  - deploy\n" });
+  const dir = repo({ ".gitlab-ci.yml": "stages:\r\n  - build\r\n  - deploy\r\n" });
   trace(dir);
   assert.match(readFileSync(join(dir, ".gitlab/goairside-report.yml"), "utf8"), /^  stage: build$/m);
+  assert.equal(
+    readFileSync(join(dir, ".gitlab-ci.yml"), "utf8"),
+    "stages:\r\n  - build\r\n  - deploy\r\n\r\ninclude:\r\n  - local: .gitlab/goairside-report.yml\r\n"
+  );
 });
 
 test("pipeline: the GitLab include joins an existing include list, once; other forms are left alone", () => {
@@ -90,6 +96,10 @@ test("pipeline: the GitLab include joins an existing include list, once; other f
   assert.equal(
     ci("include:\n  # shared\n  - project: org/ci\n    file: base.yml\nbuild:\n  script: [make]\n"),
     "include:\n  - local: .gitlab/goairside-report.yml\n  # shared\n  - project: org/ci\n    file: base.yml\nbuild:\n  script: [make]\n"
+  );
+  assert.equal(
+    ci("include:\r\n  - local: base.yml\r\n"),
+    "include:\r\n  - local: .gitlab/goairside-report.yml\r\n  - local: base.yml\r\n"
   );
   assert.equal(ci("include: base.yml\n"), "include: base.yml\n");
   assert.equal(ci("include:\n  local: base.yml\n"), "include:\n  local: base.yml\n");
