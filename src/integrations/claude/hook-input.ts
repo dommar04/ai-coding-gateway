@@ -1,6 +1,7 @@
 import type { ToolCall } from "../../entities/tool-call";
 import { randomUUID } from "node:crypto";
 import { latestPromptId, type PromptSubmission } from "../../storage/tables/prompts";
+import { latestModel } from "./transcript";
 
 export function toPrompt(input: unknown): PromptSubmission {
   const p = input as { session_id?: string; prompt_id?: string; prompt?: string; cwd?: string; transcript_path?: string };
@@ -52,5 +53,7 @@ export function toToolCall(input: ClaudeToolHookInput): ToolCall {
     promptId: input.prompt_id ?? latestPromptId(input.session_id, "claude"),
     agentId: input.agent_id,
     transcriptPath: input.transcript_path,
+    // Claude's hook input has no model; only finished calls need it (for the trace).
+    model: input.hook_event_name === "PostToolUse" ? latestModel(input.transcript_path) : undefined,
   };
 }

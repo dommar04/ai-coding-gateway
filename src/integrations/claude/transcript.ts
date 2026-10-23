@@ -130,6 +130,44 @@ export function readTranscript(path: string): Map<string, PromptInfo> {
   return entry.prompts;
 }
 
+/** Bytes read from the end of a transcript to find the latest model; the entry asking for a tool call is near the end. */
+const MODEL_TAIL_BYTES = 1024 * 1024;
+
+/**
+ * The model of the latest assistant entry. Reads only the end of the transcript: hooks run in a new
+ * process each time, so the cache of readTranscript would start empty and read the whole file.
+ */
+export function latestModel(transcriptPath: string | undefined): string | undefined {
+  if (!transcriptPath) return undefined;
+  try {
+    const size = statSync(transcriptPath).size;
+    const length = Math.min(size, MODEL_TAIL_BYTES);
+    const tail = Buffer.alloc(length);
+    const fd = openSync(transcriptPath, "r");
+    try {
+      readSync(fd, tail, 0, length, size - length);
+    } finally {
+      closeSync(fd);
+    }
+    const lines = tail.toString("utf8").split("\n");
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('"assistant"')) continue;
+      let o: { type?: string; message?: { model?: unknown } };
+      try {
+        o = JSON.parse(lines[i]);
+      } catch {
+        continue; // the cut-off first line, or one still being written
+      }
+      const model = o.message?.model;
+      // "<synthetic>" marks messages Claude Code wrote itself, not a model.
+      if (o.type === "assistant" && typeof model === "string" && model && model !== "<synthetic>") return model;
+    }
+  } catch {
+    // No transcript (yet): the model stays unknown.
+  }
+  return undefined;
+}
+
 export function promptInfo(transcriptPath: string | null, promptId: string): PromptInfo | null {
   if (!transcriptPath) return null;
   try {

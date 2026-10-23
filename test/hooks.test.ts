@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -49,6 +49,28 @@ test("PostToolUse leaves small, clean results alone", () => {
     tool_response: { stdout: "/home/me", stderr: "", interrupted: false, isImage: false },
   });
   assert.deepEqual(out, {});
+});
+
+test("PostToolUse traces what the agent wrote into the project's .goairside folder", () => {
+  const project = mkdtempSync(join(tmpdir(), "apichap-hooks-project-"));
+  hook("post", {
+    ...base,
+    cwd: project,
+    hook_event_name: "PostToolUse",
+    tool_name: "Edit",
+    tool_use_id: "tu-trace",
+    tool_input: { file_path: join(project, "a.ts"), old_string: "let x = 1;", new_string: "let x = 2;" },
+    tool_response: {},
+  });
+  const traces = join(project, ".goairside", "traces");
+  const [file] = readdirSync(traces);
+  assert.match(file, /_s1\.jsonl$/);
+  const [session, change] = readFileSync(join(traces, file), "utf8")
+    .trim()
+    .split("\n")
+    .map((l) => JSON.parse(l));
+  assert.equal(session.kind, "session");
+  assert.deepEqual([change.tool, change.path, change.seg.length], ["Edit", "a.ts", 1]);
 });
 
 test("PreToolUse still denies by rule in enforce mode", () => {

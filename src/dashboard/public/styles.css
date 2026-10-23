@@ -1,51 +1,56 @@
-/* apichap brand: green #4b8e7a, ink #0d0d0d */
+/* Same look as the managed goAirside dashboard: white, monochrome, thin lines; color only for decisions. */
 :root {
-  --brand: #4b8e7a;
-  --brand-strong: #3b7463;
-  --brand-soft: #e9f3f0;
-  --brand-ring: rgba(75, 142, 122, 0.25);
-  --ink: #0d0d0d;
-  --text: #1b1f1e;
-  --muted: #68726f;
-  --faint: #97a09d;
-  --bg: #f4f6f5;
+  --brand: #171717;
+  --brand-strong: #0a0a0a;
+  --brand-soft: #f4f4f5;
+  --brand-ring: rgba(23, 23, 23, 0.14);
+  --on-brand: #ffffff;
+  --ink: #0a0a0a;
+  --text: #171717;
+  --muted: #737373;
+  --faint: #a3a3a3;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --sunken: #f7f9f8;
-  --border: #e2e7e5;
-  --border-strong: #cfd7d4;
-  --ok: #2f8f5b;
-  --ok-soft: #e4f4ea;
-  --bad: #c43d3d;
-  --bad-soft: #fbe9e9;
+  --sunken: #fafafa;
+  --border: #e8e8e8;
+  --border-strong: #d4d4d4;
+  --ok: #16834a;
+  --ok-soft: #f0faf4;
+  --bad: #c8314f;
+  --bad-soft: #fff3f5;
   --warn: #b26a00;
-  --warn-soft: #fdf1dd;
-  --code: #eef2f0;
-  --shadow: 0 1px 2px rgba(13, 13, 13, 0.04), 0 2px 8px rgba(13, 13, 13, 0.04);
-  --radius: 10px;
-  --sidebar: 248px;
+  --warn-soft: #fff9eb;
+  --code: #f5f5f5;
+  --shadow: none;
+  --radius: 6px;
+  --sidebar: 258px;
+  --topbar: 64px;
+  --sans: "Manrope", "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --brand: #5fa690;
-    --brand-strong: #7cc0aa;
-    --brand-soft: #172722;
-    --brand-ring: rgba(95, 166, 144, 0.3);
-    --ink: #f1f4f3;
-    --text: #e5eae8;
-    --muted: #8f9a96;
-    --faint: #66706d;
-    --bg: #0b0e0d;
-    --panel: #121716;
-    --sunken: #0f1312;
-    --border: #222a28;
-    --border-strong: #2f3a37;
-    --ok: #52c285;
-    --ok-soft: #12271b;
-    --bad: #f07070;
-    --bad-soft: #2c1414;
+    --brand: #fafafa;
+    --brand-strong: #ffffff;
+    --brand-soft: #1c1c1c;
+    --brand-ring: rgba(250, 250, 250, 0.18);
+    --on-brand: #0a0a0a;
+    --ink: #fafafa;
+    --text: #e5e5e5;
+    --muted: #a3a3a3;
+    --faint: #6b6b6b;
+    --bg: #0a0a0a;
+    --panel: #0a0a0a;
+    --sunken: #121212;
+    --border: #232323;
+    --border-strong: #333333;
+    --ok: #4ccb84;
+    --ok-soft: #0f2117;
+    --bad: #f2708a;
+    --bad-soft: #2a1218;
     --warn: #f0a849;
     --warn-soft: #2b2010;
-    --code: #1a201f;
+    --code: #171717;
     --shadow: none;
   }
 }
@@ -63,17 +68,24 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font:
-    14px/1.5 "Segoe UI",
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font: 14px/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 code,
 .mono {
-  font-family: "Cascadia Code", ui-monospace, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12.5px;
+}
+/* Small mono caps over a menu or a number, as in the managed dashboard. */
+.nav-label,
+.side-foot .label,
+.side-stat .label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 button,
 input,
@@ -99,72 +111,82 @@ svg.icon {
   grid-template-columns: var(--sidebar) 1fr;
   min-height: 100vh;
 }
+/* The top bar's button hides the sidebar (main.js). */
+.app.nav-collapsed {
+  grid-template-columns: 0 1fr;
+}
+.app.nav-collapsed aside.sidebar {
+  visibility: hidden;
+}
 aside.sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
-  background: var(--panel);
+  overflow: hidden;
+  background: var(--sunken);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 20px 14px;
-  gap: 20px;
 }
 .brand {
-  padding: 4px 8px 0;
+  display: flex;
+  align-items: center;
+  height: var(--topbar);
+  flex: none;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
 }
 .brand img {
   display: block;
-  width: 150px;
+  width: 118px;
   height: auto;
 }
-.brand .product {
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+.nav-label {
+  padding: 22px 20px 8px;
 }
 nav.menu {
   display: grid;
   gap: 2px;
+  padding: 0 10px;
 }
 nav.menu a {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
-  border-radius: 8px;
-  color: var(--muted);
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
   text-decoration: none;
-  font-weight: 500;
+  font-size: 14.5px;
+}
+nav.menu a svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.6;
+  color: var(--muted);
 }
 nav.menu a:hover {
-  background: var(--sunken);
-  color: var(--text);
+  background: var(--brand-soft);
 }
 nav.menu a.active {
-  background: var(--brand-soft);
-  color: var(--brand-strong);
+  background: #efefef;
+  color: var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  nav.menu a.active {
+    background: #1f1f1f;
+  }
 }
 nav.menu a.active svg {
-  stroke: var(--brand);
+  color: var(--ink);
 }
 .side-foot {
   margin-top: auto;
   display: grid;
   gap: 12px;
+  padding: 16px 12px;
 }
-/* ---------- sidebar footer: stat cards and mode switch ---------- */
-.side-foot .label,
-.side-stat .label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
+/* ---------- sidebar footer: stat cards, mode switch, environment ---------- */
 .side-stats {
   display: grid;
   gap: 8px;
@@ -174,8 +196,8 @@ nav.menu a.active svg {
   min-width: 0;
   padding: 10px 12px 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--sunken);
+  border-radius: var(--radius);
+  background: var(--panel);
   overflow: hidden;
 }
 /* A thin accent line on top says what the number is about. */
@@ -194,9 +216,8 @@ nav.menu a.active svg {
 }
 .side-stat .num {
   margin-top: 6px;
-  font-family: "Cascadia Code", ui-monospace, Consolas, monospace;
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.15;
   letter-spacing: -0.02em;
   color: var(--ink);
@@ -204,7 +225,7 @@ nav.menu a.active svg {
 }
 .side-stat .sub {
   margin-top: 2px;
-  font-family: "Cascadia Code", ui-monospace, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
@@ -237,8 +258,8 @@ nav.menu a.active svg {
   gap: 2px;
   padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--sunken);
+  border-radius: var(--radius);
+  background: var(--brand-soft);
 }
 .modes button {
   display: flex;
@@ -307,28 +328,207 @@ nav.menu a.active svg {
 .dot.down {
   background: var(--bad);
 }
+/* Where the agent's rules and data live. Today always this machine; later the place to sign in to managed. */
+.env-wrap {
+  position: relative;
+  margin: 0 -12px -16px;
+  border-top: 1px solid var(--border);
+}
+.env {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px 14px;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.env:hover,
+.env[aria-expanded="true"] {
+  background: var(--brand-soft);
+}
+.env:focus-visible {
+  outline: 2px solid var(--brand-ring);
+  outline-offset: -2px;
+}
+.env-chev {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 0.15s;
+}
+.env[aria-expanded="true"] .env-chev {
+  transform: rotate(90deg);
+}
+.env-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--panel);
+}
+.env-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.env-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.3;
+}
+.env-name {
+  font-size: 14px;
+  color: var(--ink);
+}
+.env-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+/* The environment menu: opens upwards from the block. Later: sign in, company settings. */
+.env-menu {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(13, 13, 13, 0.12);
+  z-index: 25;
+}
+.env-menu-head {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.env-menu-head strong {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.env-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+}
+.env-item:hover,
+.env-item:focus-visible {
+  background: var(--brand-soft);
+  outline: none;
+}
+.env-item svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.6;
+  color: var(--muted);
+}
+/* Settings page: one row per setting, its text left and its control right. */
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.setting:last-child {
+  border-bottom: 0;
+}
+div.setting {
+  cursor: default;
+  flex-wrap: wrap;
+}
+.setting-text {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.setting-text b {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.setting.disabled {
+  cursor: not-allowed;
+}
+.setting.disabled .setting-text {
+  opacity: 0.55;
+}
 
 main {
   min-width: 0;
-  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
 }
+/* Top bar: the sidebar button and where you are. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: var(--topbar);
+  flex: none;
+  padding: 0 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--brand-ring);
+}
+.topbar .divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-strong);
+}
+.crumb {
+  color: var(--text);
+}
+.content {
+  width: 100%;
+  padding: 32px 5% 24px;
+}
+/* The page's own buttons (the top bar names the page). */
 .page-head {
   display: flex;
   align-items: flex-end;
   gap: 16px;
   margin-bottom: 20px;
   flex-wrap: wrap;
-}
-.page-head h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 650;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-}
-.page-head p {
-  margin: 4px 0 0;
-  color: var(--muted);
 }
 .page-head .actions {
   margin-left: auto;
@@ -454,12 +654,12 @@ textarea:focus {
 .btn.primary {
   background: var(--brand);
   border-color: var(--brand);
-  color: #fff;
+  color: var(--on-brand);
 }
 .btn.primary:hover:not(:disabled) {
   background: var(--brand-strong);
   border-color: var(--brand-strong);
-  color: #fff;
+  color: var(--on-brand);
 }
 .btn.ghost-danger {
   color: var(--bad);
@@ -496,11 +696,9 @@ td {
   vertical-align: middle;
 }
 th {
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--faint);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--muted);
   background: var(--panel);
   position: sticky;
   top: 0;
@@ -551,22 +749,15 @@ tbody tr:last-child td {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+/* Outlined pills: the decision's color as text and a light border. */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 9px;
+  padding: 1px 9px;
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
   white-space: nowrap;
-}
-.badge::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
 }
 .b-allowed,
 .b-allow {
@@ -1405,7 +1596,7 @@ dd {
 #page-rules {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 56px); /* main's vertical padding */
+  height: calc(100vh - var(--topbar) - 56px); /* the top bar and .content's vertical padding */
 }
 /* Rules: the rule groups card fills the rest of the page and scrolls inside. */
 #page-rules > .rules-card {
@@ -1646,15 +1837,23 @@ dd {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
+  .brand {
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
   .brand img {
     width: 110px;
   }
-  .brand .product {
+  .nav-label,
+  .env,
+  .topbar {
     display: none;
   }
   nav.menu {
     grid-auto-flow: column;
     margin-left: auto;
+    padding: 0;
   }
   nav.menu a span.lbl {
     display: none;
@@ -1684,7 +1883,10 @@ dd {
   .side-stat .meter {
     display: none;
   }
-  main {
+  .side-foot {
+    padding: 0;
+  }
+  .content {
     padding: 20px 16px 32px;
   }
   /* The page scrolls normally here. */

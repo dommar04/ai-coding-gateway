@@ -1,0 +1,34 @@
+# Template: the goAirside AI change report for a GitHub project, as .github/workflows/goairside-report.yml.
+# For every pull request: which new code AI coding agents wrote, from the traces in .goairside/.
+name: goAirside report
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  # Lets the report add a "goAirside" check that marks the AI code in "Files changed".
+  # Without it, the report still writes the summary and the artifact.
+  checks: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The report compares the pull request with its base branch, so it needs the history.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: AI change report
+        # Pin a version (apichap-ai-coding-gateway@1.2.3) for the same results on every run.
+        run: npx -y apichap-ai-coding-gateway@latest report --out goairside-report
+        env:
+          # Steps don't get the token automatically; the report uses it only for the check (to GitHub).
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goairside-report
+          path: goairside-report/

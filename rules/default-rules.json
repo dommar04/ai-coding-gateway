@@ -1,7 +1,7 @@
 {
   "$schema": "./rule-file.schema.json",
   "name": "apichap AI Coding Gateway default rules",
-  "version": 14,
+  "version": 15,
   "description": "Starter rules, one group per policy. Allow everyday coding work, block destructive or risky actions. Anything no rule allows is denied. A matching deny rule always wins.",
   "groups": [
     {
@@ -162,7 +162,9 @@
         { "rule": "Shell(*.codex/config.toml*)", "note": "Codex settings and inline hooks" },
         { "rule": "Shell(*.codex\\config.toml*)", "note": "Codex settings and inline hooks" },
         { "rule": "Shell(*.claude/settings*)", "note": "Claude Code settings (hooks)" },
-        { "rule": "Shell(*.claude\\settings*)", "note": "Claude Code settings (hooks)" }
+        { "rule": "Shell(*.claude\\settings*)", "note": "Claude Code settings (hooks)" },
+        { "rule": "FileEdit(**/.goairside/**)", "note": "the project's trace of what the agent wrote" },
+        { "rule": "Shell(*.goairside*)", "note": "the project's trace of what the agent wrote" }
       ]
     },
     {
