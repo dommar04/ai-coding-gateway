@@ -1,7 +1,7 @@
 // Entry point: navigation, sidebar, live stream, startup.
-import { $, $$, api, guard, state, toast, token } from "./core.js";
+import { $, $$, api, esc, guard, state, toast, token } from "./core.js";
 import { fmtTok, pct } from "./format.js";
-import { loadActivity, renderCalls, renderProjectOptions, setPrompts, upsertCalls } from "./activity.js";
+import { loadActivity, projectLabel, renderCalls, renderProjectOptions, setPrompts, upsertCalls } from "./activity.js";
 import { loadStrategies } from "./savings.js";
 import { loadRules } from "./rules.js";
 
@@ -128,6 +128,22 @@ $$("#page-settings [data-feature]").forEach((input) =>
   )
 );
 
+// Manual pipeline setup, for one of the projects the gateway knows.
+function renderPipelineProjects() {
+  $("#pipeline-project").innerHTML = state.projects
+    .map((x) => `<option value="${esc(x.project)}" title="${esc(x.project)}">${esc(projectLabel(x.project))}</option>`)
+    .join("");
+  $("#pipeline-project").value = state.project || state.projects[0]?.project || "";
+  $("#pipeline-run").disabled = !state.projects.length;
+}
+$("#pipeline-run").addEventListener(
+  "click",
+  guard(async () => {
+    const { setUp } = await api("POST", "/api/pipelines", { project: $("#pipeline-project").value });
+    toast(setUp.length ? `Pipeline report set up for ${setUp.join(" and ")}` : "No GitHub or GitLab CI found in this repository");
+  })
+);
+
 // ---------- live stream ----------
 function connect() {
   const es = new EventSource(`/api/stream?token=${encodeURIComponent(token)}`);
@@ -161,6 +177,7 @@ if (!token) {
     showPage(location.hash.slice(1) || "calls");
     state.projects = await api("GET", "/api/projects");
     renderProjectOptions();
+    renderPipelineProjects();
     await loadActivity();
   })();
 }

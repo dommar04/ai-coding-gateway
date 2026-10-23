@@ -38,6 +38,7 @@ import type { Verdict } from "../services/tool-security/matching/engine";
 import { parseJsonOrText } from "../helpers/json";
 import { FEATURES, MODES, features, getMode, setFeature, setMode, type Feature, type Mode } from "../services/settings";
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
+import { setUpPipelines } from "../services/pipeline/pipelines";
 import {
   addGroup,
   addRule,
@@ -500,6 +501,13 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
         throw new HttpError(400, `Expected { feature: ${FEATURES.join(" | ")}, on: boolean }`);
       setFeature(body.feature as Feature, body.on);
       return sendJson(res, 200, { features: features() });
+    }
+
+    if (path === "/api/pipelines" && method === "POST") {
+      const body = await readBody(req);
+      // Only projects the gateway has seen: the dashboard must not write into arbitrary folders.
+      if (!listProjects().some((p) => p.project === body.project)) throw new HttpError(400, "Unknown project");
+      return sendJson(res, 200, { setUp: setUpPipelines(body.project as string) });
     }
 
     throw new HttpError(404, "Not found");

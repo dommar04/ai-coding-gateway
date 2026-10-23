@@ -34,17 +34,24 @@ const CI_SETUPS: CiSetup[] = [
   },
 ];
 
-/** Adds the report to every CI the repository holding `projectRoot` uses. Never throws: it runs in a hook. */
-export function setUpPipelines(projectRoot: string): void {
+/**
+ * Adds the report to every CI the repository holding `projectRoot` uses, and returns their names.
+ * Never throws: it runs in a hook.
+ */
+export function setUpPipelines(projectRoot: string): string[] {
   const repo = repoRoot(projectRoot);
-  if (!repo) return;
+  if (!repo) return [];
+  const done: string[] = [];
   for (const ci of CI_SETUPS) {
     try {
-      if (ci.uses(repo)) ci.setUp(repo);
+      if (!ci.uses(repo)) continue;
+      ci.setUp(repo);
+      done.push(ci.name);
     } catch (err) {
       logError(`pipeline setup: ${ci.name}`, err);
     }
   }
+  return done;
 }
 
 /** The folder holding .git, from `dir` upwards. */

@@ -232,6 +232,15 @@
                 >
                 <span class="switch"><input type="checkbox" data-feature="pipelines" /><span></span></span>
               </label>
+              <div class="setting">
+                <div class="setting-text">
+                  <b>Set up pipeline report now</b><span>Add the report to a project's CI without waiting for its first trace file. Existing files are kept.</span>
+                </div>
+                <div class="actions">
+                  <select class="sm" id="pipeline-project" title="Project"></select>
+                  <button type="button" class="btn sm" id="pipeline-run">Set up</button>
+                </div>
+              </div>
             </div>
             <p class="muted small">
               These settings apply to every project on this machine. Later, signing in to a managed workspace will set them for
