@@ -20,10 +20,9 @@
 
 A local gateway for Claude Code and Codex. It checks every tool call against your rules and records every change the agent makes to your code. Your merge requests then show how much of the new code was written by AI.
 
-
 ## Get a report on every AI generated line of code in your CI
 
-Every time the agent writes to a file, the gateway records what it added in a small trace file inside your project (`.goairside/traces`). Commit the trace files with your code. From them, the gateway builds a full report for a branch or merge request: how much of the new code AI wrote, in which files and lines, and with which models.
+Every time the agent modifies your code, the gateway records a trace inside your project. Using Github and Gitlab CI automatically generates a report in your MR/PR showing every line of AI Generated code. Including which model changed it.  
 
 <p align="center">
   <img src="assets/ai-change-report.png" alt="The AI change report: 61% of the new code was written by AI, 4 of 4 changed files contain AI code, one model" width="1000">
