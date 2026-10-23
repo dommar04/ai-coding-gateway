@@ -68,7 +68,10 @@ test("pipeline: nothing without CI files, and nothing outside a repository", () 
 test("pipeline: the GitLab job gets a stage the project has", () => {
   assert.equal(gitLabStage("build:\n  script: [make]\n"), "test");
   assert.equal(gitLabStage("stages:\n  - build\n  - test\n"), "test");
-  assert.equal(gitLabStage("stages:\n  - .pre\n  # first\n  - pre-build\n  - build\n  - deploy\n\njob:\n  script: [x]\n"), "pre-build");
+  assert.equal(
+    gitLabStage("stages:\n  - .pre\n  # first\n  - pre-build\n  - build\n  - deploy\n\njob:\n  script: [x]\n"),
+    "pre-build"
+  );
   assert.equal(gitLabStage('stages: [".pre", build, deploy]\n'), "build");
 
   const dir = repo({ ".gitlab-ci.yml": "stages:\n  - build\n  - deploy\n" });

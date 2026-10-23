@@ -86,9 +86,15 @@ function writeTemplate(template: string, target: string, edit = (text: string) =
 export function gitLabStage(ci: string): string {
   const block = /^stages:[ \t]*(?:\[(.*)\]|\n((?:[ \t]*(?:-.*|#.*)?(?:\n|$))*))/m.exec(ci);
   if (!block) return "test";
-  const items = block[1] !== undefined ? block[1].split(",") : (block[2].match(/^[ \t]*-.*$/gm) ?? []).map((l) => l.replace(/^[ \t]*-/, ""));
+  const items =
+    block[1] !== undefined ? block[1].split(",") : (block[2].match(/^[ \t]*-.*$/gm) ?? []).map((l) => l.replace(/^[ \t]*-/, ""));
   const stages = items
-    .map((s) => s.replace(/#.*/, "").trim().replace(/^["']|["']$/g, ""))
+    .map((s) =>
+      s
+        .replace(/#.*/, "")
+        .trim()
+        .replace(/^["']|["']$/g, "")
+    )
     .filter((s) => s && s !== ".pre" && s !== ".post");
   return !stages.length || stages.includes("test") ? "test" : stages[0];
 }
