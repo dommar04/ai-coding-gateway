@@ -5,6 +5,11 @@ Notable changes for each release are listed here. This changelog follows [Keep a
 ## 1.0.1
 
 - **CLI command update:** Cleanup CLI commands
+- **AI Coding Traces:** Log every Change your AI Coding agent runs
+- **AI Coding Report:** Automatically get a report on every Merge Request (MR) or Pull Request (PR) showing every AI Generated code line.
+- **CI Integration Github Actions:** Integration to Github by using Github Actions. Showing Code Changes and Report directly in PR.
+- **CI Integration Gitlab CI:** Integration to Gitlab by using Github CI. Showing Code Changes and Report directly in MR.
+- **Web Dashboard Improvements:** New UI Design Changes and a Settings Page.
 
 ## 1.0.0
 
