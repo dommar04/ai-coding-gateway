@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TraceFile } from "../src/services/trace/helper/trace-file";
-import { addGitLabInclude } from "../src/services/pipeline/pipelines";
+import { addGitLabInclude, gitLabStage } from "../src/services/pipeline/pipelines";
 import { packageVersion } from "../src/integrations/shared/settings";
 
 const root = mkdtempSync(join(tmpdir(), "apichap-pipeline-"));
@@ -63,6 +63,20 @@ test("pipeline: nothing without CI files, and nothing outside a repository", () 
   writeFileSync(join(plain, ".gitlab-ci.yml"), "test:\n  script: [npm test]\n");
   trace(plain);
   assert.equal(existsSync(join(plain, ".gitlab")), false);
+});
+
+test("pipeline: the GitLab job gets a stage the project has", () => {
+  assert.equal(gitLabStage("build:\n  script: [make]\n"), "test");
+  assert.equal(gitLabStage("stages:\n  - build\n  - test\n"), "test");
+  assert.equal(
+    gitLabStage("stages:\n  - .pre\n  # first\n  - pre-build\n  - build\n  - deploy\n\njob:\n  script: [x]\n"),
+    "pre-build"
+  );
+  assert.equal(gitLabStage('stages: [".pre", build, deploy]\n'), "build");
+
+  const dir = repo({ ".gitlab-ci.yml": "stages:\n  - build\n  - deploy\n" });
+  trace(dir);
+  assert.match(readFileSync(join(dir, ".gitlab/goairside-report.yml"), "utf8"), /^  stage: build$/m);
 });
 
 test("pipeline: the GitLab include joins an existing include list, once; other forms are left alone", () => {

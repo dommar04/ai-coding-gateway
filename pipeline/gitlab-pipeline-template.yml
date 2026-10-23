@@ -4,6 +4,9 @@
 #   branches:       only that Code Quality report. GitLab shows a merge request the AI code that is new
 #                   compared with its target branch's report, so every branch needs one.
 goairside-report:
+  # Any stage of the project works: the job needs nothing from other jobs, so it starts right away.
+  stage: test
+  needs: []
   image: node:22
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
