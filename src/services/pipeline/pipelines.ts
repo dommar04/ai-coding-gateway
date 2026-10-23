@@ -84,7 +84,7 @@ function writeTemplate(template: string, target: string, edit = (text: string) =
  * shortcut: reads `stages:` in .gitlab-ci.yml only, not in included files; then the stage is set by hand.
  */
 export function gitLabStage(ci: string): string {
-  const block = /^stages:[ \t]*(?:\[(.*)\]|\n((?:[ \t]*(?:-.*|#.*)?(?:\n|$))*))/m.exec(ci);
+  const block = /^stages:[ \t]*(?:\[(.*)\]|\n((?:[ \t]*(?:-.*|#.*)?(?:\n|$))*))/m.exec(lf(ci));
   if (!block) return "test";
   const items =
     block[1] !== undefined ? block[1].split(",") : (block[2].match(/^[ \t]*-.*$/gm) ?? []).map((l) => l.replace(/^[ \t]*-/, ""));
@@ -104,11 +104,15 @@ export function gitLabStage(ci: string): string {
  * Other `include:` forms (a single file, a map) are left alone, with a note in the error log.
  */
 export function addGitLabInclude(file: string): void {
-  const text = readFileSync(file, "utf8");
-  if (text.includes(GITLAB_JOB)) return;
+  const raw = readFileSync(file, "utf8");
+  if (raw.includes(GITLAB_JOB)) return;
+  const text = lf(raw);
+  // Written back with the file's own line endings and byte order mark.
+  const save = (t: string) =>
+    writeFileSync(file, (raw.startsWith("﻿") ? "﻿" : "") + (raw.includes("\r\n") ? t.replace(/\n/g, "\r\n") : t));
   const include = /^include:[ \t]*(\S.*)?$/m.exec(text);
   if (!include) {
-    writeFileSync(file, `${text}${text.endsWith("\n") || !text ? "" : "\n"}\ninclude:\n  - local: ${GITLAB_JOB}\n`);
+    save(`${text}${text.endsWith("\n") || !text ? "" : "\n"}\ninclude:\n  - local: ${GITLAB_JOB}\n`);
     return;
   }
   const after = text.slice(include.index + include[0].length);
@@ -118,5 +122,10 @@ export function addGitLabInclude(file: string): void {
     return;
   }
   const at = include.index + include[0].length;
-  writeFileSync(file, `${text.slice(0, at)}\n${item[1]}- local: ${GITLAB_JOB}${text.slice(at)}`);
+  save(`${text.slice(0, at)}\n${item[1]}- local: ${GITLAB_JOB}${text.slice(at)}`);
+}
+
+/** The YAML with "\n" line endings and no byte order mark, as the patterns above expect (Windows files have "\r\n"). */
+function lf(yaml: string): string {
+  return yaml.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
 }
