@@ -243,6 +243,8 @@ Or add the job to `.gitlab-ci.yml` directly:
 
 ```yaml
 goairside-report:
+  stage: test # any stage your project has
+  needs: []
   image: node:22
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -263,6 +265,7 @@ Good to know:
 - Every branch that is the target of a merge request (such as `develop` → `main`) needs its own branch pipeline with the job. That is why the template runs on branches too.
 - If your project has no `workflow:` rules, a branch with an open merge request may run two pipelines (branch and merge request). That is expected.
 - The Code Quality widget is available on every GitLab tier. Markers inline in the **Changes** tab depend on your GitLab tier.
+- **"chosen stage test does not exist":** your project's `stages:` list has no `test`. Set `stage:` in the job to one of your own stages. Automatic setup picks one from the `stages:` list in `.gitlab-ci.yml`, but it can't see stages defined in included files.
 - Automatic setup only adds the `include:` line when `.gitlab-ci.yml` has no `include:` or uses an `include:` list. For other forms, it writes a note to the error log, and you add the line by hand.
 
 #### Run the report locally

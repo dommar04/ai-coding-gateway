@@ -28,8 +28,10 @@ const CI_SETUPS: CiSetup[] = [
     name: "GitLab CI",
     uses: (repo) => existsSync(join(repo, ".gitlab-ci.yml")),
     setUp(repo) {
-      writeTemplate("gitlab-pipeline-template.yml", join(repo, GITLAB_JOB));
-      addGitLabInclude(join(repo, ".gitlab-ci.yml"));
+      const ci = join(repo, ".gitlab-ci.yml");
+      const stage = gitLabStage(readFileSync(ci, "utf8"));
+      writeTemplate("gitlab-pipeline-template.yml", join(repo, GITLAB_JOB), (t) => t.replace("stage: test", `stage: ${stage}`));
+      addGitLabInclude(ci);
     },
   },
 ];
@@ -63,15 +65,32 @@ function repoRoot(dir: string): string | null {
 }
 
 /** Writes a template with this package's version, unless the file exists. */
-function writeTemplate(template: string, target: string): void {
+function writeTemplate(template: string, target: string, edit = (text: string) => text): void {
   if (existsSync(target)) return;
-  const text = readFileSync(packageFile("pipeline", template), "utf8").replace(
-    "apichap-ai-coding-gateway@latest",
-    `apichap-ai-coding-gateway@${packageVersion()}`
+  const text = edit(
+    readFileSync(packageFile("pipeline", template), "utf8").replace(
+      "apichap-ai-coding-gateway@latest",
+      `apichap-ai-coding-gateway@${packageVersion()}`
+    )
   );
   mkdirSync(dirname(target), { recursive: true });
   // "wx": a parallel hook call may have written it first.
   writeFileSync(target, text, { flag: "wx" });
+}
+
+/**
+ * A stage the GitLab project has, for the job: "test" (a default stage) unless `stages:` lists others, then
+ * its first one. Not .pre or .post: GitLab doesn't run a pipeline that has only jobs in those.
+ * shortcut: reads `stages:` in .gitlab-ci.yml only, not in included files; then the stage is set by hand.
+ */
+export function gitLabStage(ci: string): string {
+  const block = /^stages:[ \t]*(?:\[(.*)\]|\n((?:[ \t]*(?:-.*|#.*)?(?:\n|$))*))/m.exec(ci);
+  if (!block) return "test";
+  const items = block[1] !== undefined ? block[1].split(",") : (block[2].match(/^[ \t]*-.*$/gm) ?? []).map((l) => l.replace(/^[ \t]*-/, ""));
+  const stages = items
+    .map((s) => s.replace(/#.*/, "").trim().replace(/^["']|["']$/g, ""))
+    .filter((s) => s && s !== ".pre" && s !== ".post");
+  return !stages.length || stages.includes("test") ? "test" : stages[0];
 }
 
 /**
