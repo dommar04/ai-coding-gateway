@@ -22,7 +22,7 @@ A local gateway for Claude Code and Codex. It checks every tool call against you
 
 ## Get a report on every AI generated line of code in your CI
 
-Every time the agent modifies your code, the gateway records a trace inside your project. Using Github and Gitlab CI automatically generates a report in your MR/PR showing every line of AI Generated code. Including which model changed it.  
+Every time the agent modifies your code, the gateway records a trace inside your project. Using Github and Gitlab CI automatically generates a report in your MR/PR showing every line of AI Generated code. Including which model changed it.
 
 <p align="center">
   <img src="assets/ai-change-report.png" alt="The AI change report: 61% of the new code was written by AI, 4 of 4 changed files contain AI code, one model" width="1000">
@@ -171,10 +171,10 @@ The `report` command compares a merge request (or push) with its base. It reads 
 
 When a project gets its first trace file, the gateway adds the job for each CI that the repository already uses:
 
-| CI             | Detected by                         | Files written                                                                 |
-| -------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| GitHub Actions | a `.github/workflows/` folder       | `.github/workflows/goairside-report.yml`                                      |
-| GitLab CI      | a `.gitlab-ci.yml` file             | `.gitlab/goairside-report.yml`, plus an `include:` line in `.gitlab-ci.yml`   |
+| CI             | Detected by                   | Files written                                                               |
+| -------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| GitHub Actions | a `.github/workflows/` folder | `.github/workflows/goairside-report.yml`                                    |
+| GitLab CI      | a `.gitlab-ci.yml` file       | `.gitlab/goairside-report.yml`, plus an `include:` line in `.gitlab-ci.yml` |
 
 Existing files are never overwritten, so your own edits stay. Review the new files and commit them. To turn automatic setup off, use **Settings → Git pipeline report** in the dashboard.
 
