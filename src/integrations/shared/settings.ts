@@ -155,3 +155,22 @@ export function uninstallHooks(options: { path: string }): { path: string; backu
   const backup = removed > 0 ? writeSettings(path, settings) : null;
   return { path, backup, removed };
 }
+
+/** True when every event in PHASES still has our hook handler (reported to the company server on sync). */
+export function hooksInstalled(path: string): boolean {
+  let settings: Settings;
+  try {
+    settings = readSettings(path);
+  } catch {
+    return false;
+  }
+  return PHASES.every(({ event }) => {
+    const entries = settings.hooks?.[event];
+    return (
+      Array.isArray(entries) &&
+      entries.some(
+        (e) => Array.isArray(e.hooks) && e.hooks.some((h) => typeof h.command === "string" && OUR_COMMAND.test(h.command))
+      )
+    );
+  });
+}

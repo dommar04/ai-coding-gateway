@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { hookCommand, installHooks, packageVersion, uninstallHooks } from "../src/integrations/claude/settings";
+import { hookCommand, hooksInstalled, installHooks, packageVersion, uninstallHooks } from "../src/integrations/claude/settings";
 
 const tempSettings = (content?: unknown) => {
   const path = join(mkdtempSync(join(tmpdir(), "apichap-install-")), "settings.json");
@@ -95,4 +95,15 @@ test("uninstall removes only the gateway hooks", () => {
   assert.equal(result.removed, 5);
   assert.deepEqual(read(path).hooks, { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "my-linter" }] }] });
   assert.equal(uninstallHooks({ path }).removed, 0);
+});
+
+test("hooksInstalled is true only while every gateway hook is still registered", () => {
+  const path = tempSettings();
+  assert.equal(hooksInstalled(path), false);
+  installHooks({ path });
+  assert.equal(hooksInstalled(path), true);
+  const s = read(path);
+  delete s.hooks.PreToolUse;
+  writeFileSync(path, JSON.stringify(s));
+  assert.equal(hooksInstalled(path), false);
 });

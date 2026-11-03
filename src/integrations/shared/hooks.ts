@@ -3,6 +3,7 @@ import { logError } from "../../helpers/errors";
 import type { Integration } from "..";
 import { readHookInput, reply } from "./hook-io";
 import { recordPrompt } from "../../storage/tables/prompts";
+import { maybeSync } from "../../services/company/sync";
 export async function runIntegrationHook(phase: string, integration: Integration): Promise<void> {
   if (phase === "pre") {
     let outcome;
@@ -32,6 +33,7 @@ export async function runIntegrationHook(phase: string, integration: Integration
     } catch (err) {
       logError("hook:prompt", err);
     }
+    await maybeSync(integration); // throttled, never throws
     reply();
   } else {
     try {
@@ -41,6 +43,7 @@ export async function runIntegrationHook(phase: string, integration: Integration
     } catch (err) {
       logError("hook:session", err);
     }
+    await maybeSync(integration);
     reply();
   }
 }

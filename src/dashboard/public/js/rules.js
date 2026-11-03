@@ -1,16 +1,19 @@
 // Rules page: rule groups (one policy each, with its rules), test box, import/export/defaults.
 import { $, $$, api, esc, guard, state, toast, token } from "./core.js";
+import { fmtTime } from "./format.js";
 
 // ---------- loading ----------
 export async function loadRules() {
-  const [rules, groups, defaults] = await Promise.all([
+  const [rules, groups, defaults, company] = await Promise.all([
     api("GET", "/api/rules"),
     api("GET", "/api/rule-groups"),
     api("GET", "/api/rules/defaults"),
+    api("GET", "/api/company"),
   ]);
   state.rules = rules;
   state.groups = groups;
   state.defaults = defaults;
+  state.company = company;
   renderRules();
   renderDefaultsBanner();
 }
@@ -514,6 +517,13 @@ $("#import-apply").addEventListener(
 export function renderDefaultsBanner() {
   const d = state.defaults;
   const el = $("#defaults-banner");
+  // Company rules replace the defaults, so the managed line takes the banner's place.
+  const c = state.company;
+  if (c?.managed) {
+    const synced = c.lastSync ? `synced ${fmtTime(c.lastSync)}` : "not synced yet";
+    el.innerHTML = `<div class="banner info"><div class="banner-text">Managed by your company${c.version !== null ? ` · rules v${c.version}` : ""} · ${esc(synced)}</div></div>`;
+    return;
+  }
   if (!d || d.importedVersion >= d.version) {
     el.innerHTML = "";
     return;

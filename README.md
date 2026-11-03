@@ -312,6 +312,16 @@ For example, `Shell(git *)` allows Git commands in Bash and PowerShell, while `B
 
 The dashboard's **Import…** and **Export** actions let you move rules between installations. Import shows a preview first: **Add** keeps existing rules and adds new ones; **Replace** removes the current rules before importing.
 
+### Company rules
+
+Log in once with your company account:
+
+```bash
+npx apichap-ai-coding-gateway login [--email you@company.com] [--server url]
+```
+
+The company's rules and settings then replace all local rules and sync automatically when an agent session starts and when you submit a prompt, at most every 5 minutes. They are read-only: the dashboard can't change rules, groups or features, and local changes are reverted at the next sync. If a sync fails, the last synced rules stay in place. The server defaults to `https://coding-gateway.dev.apichap.com`; set `APICHAP_GATEWAY_SERVER` (or `login --server <url>`) to use another one.
+
 ### Modes
 
 Choose the mode in the dashboard sidebar or under **Settings**:
@@ -337,6 +347,7 @@ Use `npx apichap-ai-coding-gateway` or the global `apichap-gateway` command:
 ```bash
 npx apichap-ai-coding-gateway init --agent claude|codex       # register the hooks
 npx apichap-ai-coding-gateway uninstall --agent claude|codex  # remove them again
+npx apichap-ai-coding-gateway login [--email you@company.com]  # log in to your company; rules sync automatically
 npx apichap-ai-coding-gateway dashboard [--port 4717] [--no-open]
 npx apichap-ai-coding-gateway report [--base <branch|commit>] [--head <commit>] [--out goairside-report]
 ```

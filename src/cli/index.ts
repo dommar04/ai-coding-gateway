@@ -1,5 +1,6 @@
 import { runDashboard } from "./commands/dashboard";
 import { runHook } from "./commands/hook";
+import { runLogin } from "./commands/login";
 import { runReport } from "./commands/report";
 import { runInit, runUninstall } from "./commands/setup";
 
@@ -13,11 +14,13 @@ export const COMMANDS: Record<string, Command> = {
   uninstall: runUninstall,
   dashboard: runDashboard,
   report: runReport,
+  login: runLogin,
 };
 
 export const USAGE = [
   "  apichap-gateway init --agent claude|codex [--installed | --local] [--settings path]   (register agent hooks)",
   "  apichap-gateway uninstall --agent claude|codex [--settings path]  (remove the hooks again)",
+  "  apichap-gateway login [--email you@company.com] [--server url]   (log in to your company; rules sync automatically)",
   "  apichap-gateway dashboard [--port 4717] [--no-open]   (local web dashboard: activity, rules, mode, token savings)",
   "  apichap-gateway report [--base <branch|commit>] [--head <commit>] [--out goairside-report]   (AI change report; in CI the range comes from the merge request or push)",
 ];

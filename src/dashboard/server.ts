@@ -39,6 +39,8 @@ import { parseJsonOrText } from "../helpers/json";
 import { FEATURES, MODES, features, getMode, setFeature, setMode, type Feature, type Mode } from "../services/settings";
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import { setUpPipelines } from "../services/pipeline/pipelines";
+import { managed } from "../services/company/session";
+import { getSetting } from "../storage/tables/settings";
 import {
   addGroup,
   addRule,
@@ -327,6 +329,27 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
     const path = url.pathname;
     let m: RegExpMatchArray | null;
 
+    // Logged in: rules and features come from the company and can't be changed here (testing a call still works).
+    if (
+      managed() &&
+      method !== "GET" &&
+      method !== "HEAD" &&
+      /^\/api\/(rules|rule-groups|calls\/\d+\/allow)/.test(path) &&
+      path !== "/api/rules/test"
+    )
+      throw new HttpError(403, "Rules are managed by your company.");
+
+    if (method === "GET" && path === "/api/company") {
+      const config = getSetting("company:config");
+      return sendJson(res, 200, {
+        managed: managed(),
+        email: getSetting("auth:email") ?? null,
+        version: getSetting("company:version") ? Number(getSetting("company:version")) : null,
+        lastSync: getSetting("company:last_sync") ? Number(getSetting("company:last_sync")) : null,
+        config: config ? JSON.parse(config) : null,
+      });
+    }
+
     if (method === "GET" && path === "/api/stream") {
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
@@ -499,6 +522,8 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       const body = await readBody(req);
       if (!FEATURES.includes(body.feature as Feature) || typeof body.on !== "boolean")
         throw new HttpError(400, `Expected { feature: ${FEATURES.join(" | ")}, on: boolean }`);
+      // Traces and pipelines come from the company config; token savings stay the developer's choice.
+      if (managed() && body.feature !== "tokenSavings") throw new HttpError(403, "Rules are managed by your company.");
       setFeature(body.feature as Feature, body.on);
       return sendJson(res, 200, { features: features() });
     }
