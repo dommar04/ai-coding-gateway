@@ -18,3 +18,7 @@ export function listSettings(prefix: string): Map<string, string> {
   }>;
   return new Map(rows.map((r) => [r.key.slice(prefix.length), r.value]));
 }
+
+export function deleteSettings(prefix: string): void {
+  sql(`DELETE FROM settings WHERE substr(key, 1, ?) = ?`).run(prefix.length, prefix);
+}

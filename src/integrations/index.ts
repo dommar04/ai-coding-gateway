@@ -16,6 +16,7 @@ export interface Integration {
   capabilities: GatewayCapabilities;
   installHooks: typeof claudeSettings.installHooks;
   uninstallHooks: typeof claudeSettings.uninstallHooks;
+  hooksInstalled: typeof claudeSettings.hooksInstalled;
   toToolCall(input: unknown): ToolCall;
   preReply(outcome: BeforeToolCall): Record<string, unknown> | undefined;
   postReply(outcome: AfterToolCall): Record<string, unknown> | undefined;

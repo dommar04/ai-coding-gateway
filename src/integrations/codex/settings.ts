@@ -23,3 +23,6 @@ export function installHooks(options: { path?: string } & shared.HookCommandOpti
 export function uninstallHooks(options: { path?: string } = {}) {
   return shared.uninstallHooks({ path: options.path ?? defaultSettingsPath() });
 }
+export function hooksInstalled(path?: string) {
+  return shared.hooksInstalled(path ?? defaultSettingsPath());
+}

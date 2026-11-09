@@ -2,6 +2,9 @@ import { resolve } from "node:path";
 import { getDb } from "../../storage/database";
 import { integrationFor } from "../../integrations";
 import { parseArgs } from "../helper/args";
+import { logError } from "../../helpers/errors";
+import { managed } from "../../services/company/session";
+import { syncNow } from "../../services/company/sync";
 
 // init / uninstall: register or remove the selected integration's hooks.
 
@@ -22,12 +25,15 @@ export function runInit(args: string[]): void {
   console.log(`New ${integration.name} sessions are now tracked. The default mode is enforce; existing mode settings are kept.`);
   if (integration.setupNotes) console.log(integration.setupNotes);
   console.log("Open the dashboard:  npx apichap-ai-coding-gateway dashboard");
+  console.log("Log in to sync your company rules:  npx apichap-ai-coding-gateway login");
 }
 
-export function runUninstall(args: string[]): void {
+export async function runUninstall(args: string[]): Promise<void> {
   const { flags } = parseArgs(args);
   const integration = integrationFor(typeof flags.agent === "string" ? flags.agent : undefined);
   const path = typeof flags.settings === "string" ? flags.settings : undefined;
+  // Best effort: tell the company server the hooks are gone.
+  if (managed()) await syncNow(false).catch((err) => logError("sync", err));
   const result = integration.uninstallHooks({ path });
   console.log(
     result.removed
