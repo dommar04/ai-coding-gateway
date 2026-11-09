@@ -154,3 +154,17 @@ test("a failed login keeps the previous server", async () => {
   await assert.rejects(login("dev@company.test", "pw", "https://typo.test"), /Server error 500/);
   assert.equal(m.getSetting("server_url"), "https://old.test");
 });
+
+test("logout drops tokens and company state, keeps the server", async () => {
+  const { logout, managed } = await import("../src/services/company/session");
+  m.setSetting("server_url", "https://old.test");
+  m.setSetting("auth:refresh_token", "r");
+  m.setSetting("auth:email", "dev@company.test");
+  m.setSetting("company:version", "3");
+  assert.equal(managed(), true);
+  logout();
+  assert.equal(managed(), false);
+  assert.equal(m.getSetting("auth:email"), undefined);
+  assert.equal(m.getSetting("company:version"), undefined);
+  assert.equal(m.getSetting("server_url"), "https://old.test");
+});

@@ -322,6 +322,8 @@ npx apichap-ai-coding-gateway login [--email you@company.com] [--server url]
 
 The company's rules and settings then replace all local rules and sync automatically when an agent session starts and when you submit a prompt, at most every 5 minutes. They are read-only: the dashboard can't change rules, groups or features, and local changes are reverted at the next sync. If a sync fails, the last synced rules stay in place. The server defaults to `https://coding-gateway.dev.apichap.com`; set `APICHAP_GATEWAY_SERVER` (or `login --server <url>`) to use another one.
 
+Run `npx apichap-ai-coding-gateway logout` to end the company login. The last synced rules stay as local rules and can be edited again.
+
 ### Modes
 
 Choose the mode in the dashboard sidebar or under **Settings**:
@@ -348,6 +350,7 @@ Use `npx apichap-ai-coding-gateway` or the global `apichap-gateway` command:
 npx apichap-ai-coding-gateway init --agent claude|codex       # register the hooks
 npx apichap-ai-coding-gateway uninstall --agent claude|codex  # remove them again
 npx apichap-ai-coding-gateway login [--email you@company.com]  # log in to your company; rules sync automatically
+npx apichap-ai-coding-gateway logout                           # end the company login; rules become editable again
 npx apichap-ai-coding-gateway dashboard [--port 4717] [--no-open]
 npx apichap-ai-coding-gateway report [--base <branch|commit>] [--head <commit>] [--out goairside-report]
 ```

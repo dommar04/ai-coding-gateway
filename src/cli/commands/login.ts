@@ -1,7 +1,7 @@
 import { createInterface } from "node:readline";
-import { login } from "../../services/company/session";
+import { login, logout, managed } from "../../services/company/session";
 import { syncNow } from "../../services/company/sync";
-import { deleteSettings } from "../../storage/tables/settings";
+import { getSetting } from "../../storage/tables/settings";
 import { parseArgs } from "../helper/args";
 
 // login: connect this client to the company server; company rules then sync automatically.
@@ -39,10 +39,17 @@ export async function runLogin(args: string[]): Promise<void> {
     // Rejected (e.g. not assigned to a company): don't stay logged in, or the dashboard locks for nothing.
     const status = (err as { status?: number }).status;
     if (status === 401 || status === 403) {
-      deleteSettings("auth:");
+      logout();
       throw err;
     }
     console.log(`✔ Logged in as ${email}. The first sync failed (${err instanceof Error ? err.message : String(err)}).`);
     console.log("  It is retried when the next agent session starts.");
   }
+}
+
+export function runLogout(): void {
+  if (!managed()) return console.log("Not logged in.");
+  const email = getSetting("auth:email");
+  logout();
+  console.log(`✔ Logged out${email ? ` (${email})` : ""}. The last company rules stay as local rules.`);
 }

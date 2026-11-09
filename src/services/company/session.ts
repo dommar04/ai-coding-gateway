@@ -14,6 +14,12 @@ export async function login(email: string, password: string, server?: string): P
   }
 }
 
+/** Ends the company session: tokens and company state go; the last synced rules stay as local, editable rules. */
+export function logout(): void {
+  deleteSettings("auth:");
+  deleteSettings("company:");
+}
+
 /** Logged in: the company controls this client's rules and settings. */
 export function managed(): boolean {
   return getSetting("auth:refresh_token") !== undefined;
