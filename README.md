@@ -322,6 +322,8 @@ npx apichap-ai-coding-gateway login [--email you@company.com] [--server url]
 
 The company's rules and settings then replace all local rules and sync automatically when an agent session starts and when you submit a prompt, at most every 5 minutes. They are read-only: the dashboard can't change rules, groups or features, and local changes are reverted at the next sync. If a sync fails, the last synced rules stay in place. The server defaults to `https://coding-gateway.dev.apichap.com`; set `APICHAP_GATEWAY_SERVER` (or `login --server <url>`) to use another one.
 
+If your company turned on activity sync, each sync also uploads the tool calls logged since the last one (allowed and/or blocked, as the company chose): time, agent, session id, tool name, decision and matched rule. Tool input and results never leave your machine. Calls made before the login are not uploaded.
+
 Run `npx apichap-ai-coding-gateway logout` to end the company login. The last synced rules stay as local rules and can be edited again.
 
 ### Modes
