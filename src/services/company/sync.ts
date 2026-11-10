@@ -6,6 +6,7 @@ import { setFeature } from "../settings";
 import { parseRule } from "../tool-security/matching/pattern";
 import type { RuleFile, RuleObject } from "../tool-security/rule-files/rule-file";
 import { importRules } from "../tool-security/rule-files/rule-sets";
+import { uploadActivity } from "./activity";
 import { post } from "./api";
 import { managed } from "./session";
 
@@ -84,6 +85,8 @@ export async function maybeSync(integration: Integration): Promise<void> {
     if (Date.now() - last < INTERVAL_MS) return;
     // Throttle on attempts too, so an unreachable server isn't asked on every prompt.
     setSetting("company:last_attempt", String(Date.now()));
+    // Before syncNow: the rules replace drops the rules that pending calls matched.
+    await uploadActivity().catch((err) => logError("activity", err));
     await syncNow(integration.hooksInstalled());
   } catch (err) {
     logError("sync", err);

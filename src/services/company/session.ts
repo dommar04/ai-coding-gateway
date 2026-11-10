@@ -1,4 +1,5 @@
 import { deleteSettings, getSetting, setSetting } from "../../storage/tables/settings";
+import { resetActivityCursor } from "./activity";
 import { post, storeTokens, type Tokens } from "./api";
 
 export async function login(email: string, password: string, server?: string): Promise<void> {
@@ -6,6 +7,7 @@ export async function login(email: string, password: string, server?: string): P
   if (server) setSetting("server_url", server);
   try {
     storeTokens(await post<Tokens>("/client/login", { email, password }, false), email);
+    resetActivityCursor();
   } catch (err) {
     // Keep the old server when the new one fails (a typo would otherwise break every later sync).
     if (server && previous === undefined) deleteSettings("server_url");
