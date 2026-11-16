@@ -3,6 +3,7 @@ import { login, logout, managed } from "../../services/company/session";
 import { syncNow } from "../../services/company/sync";
 import { getSetting } from "../../storage/tables/settings";
 import { parseArgs } from "../helper/args";
+import { ensureDashboard } from "../../dashboard/autostart";
 
 // login: connect this client to the company server; company rules then sync automatically.
 
@@ -45,6 +46,7 @@ export async function runLogin(args: string[]): Promise<void> {
     console.log(`✔ Logged in as ${email}. The first sync failed (${err instanceof Error ? err.message : String(err)}).`);
     console.log("  It is retried when the next agent session starts.");
   }
+  await ensureDashboard();
 }
 
 export function runLogout(): void {

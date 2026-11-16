@@ -4,8 +4,8 @@
 export const params = new URLSearchParams(location.search);
 export let token = params.get("token");
 try {
-  if (token) sessionStorage.setItem("apichap-gateway-token", token);
-  else token = sessionStorage.getItem("apichap-gateway-token");
+  if (token) localStorage.setItem("apichap-gateway-token", token);
+  else token = localStorage.getItem("apichap-gateway-token");
 } catch {}
 if (params.has("token")) history.replaceState(null, "", location.pathname + location.hash);
 
@@ -21,6 +21,12 @@ export async function api(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    // Stale token (e.g. another machine's): forget it so the next visit shows how to connect.
+    try {
+      localStorage.removeItem("apichap-gateway-token");
+    } catch {}
+  }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
 }

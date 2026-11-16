@@ -4,6 +4,7 @@ import type { Integration } from "..";
 import { readHookInput, reply } from "./hook-io";
 import { recordPrompt } from "../../storage/tables/prompts";
 import { maybeSync } from "../../services/company/sync";
+import { ensureDashboard } from "../../dashboard/autostart";
 export async function runIntegrationHook(phase: string, integration: Integration): Promise<void> {
   if (phase === "pre") {
     let outcome;
@@ -44,6 +45,7 @@ export async function runIntegrationHook(phase: string, integration: Integration
       logError("hook:session", err);
     }
     await maybeSync(integration);
+    await ensureDashboard();
     reply();
   }
 }

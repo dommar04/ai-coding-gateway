@@ -155,6 +155,14 @@ npx apichap-ai-coding-gateway uninstall --agent claude
 
 `init` backs up the settings file, keeps other settings and hooks, and replaces earlier gateway hooks. You can run it again safely.
 
+Add `--login [email]` to log in to your company right after the hooks are installed (see [Company rules](#company-rules)); `--server <url>` is passed on to the login:
+
+```bash
+npx apichap-ai-coding-gateway init --agent claude --login you@company.com --dashboard
+```
+
+`init` also starts the dashboard in the background (`--dashboard` is accepted but not needed). See [Dashboard](#dashboard).
+
 ### AI change report in CI
 
 The `report` command compares a merge request (or push) with its base. It reads the trace files committed in that range and looks up their recorded content in the changed files. It writes the HTML report to `goairside-report/index.html`, and in CI also the GitHub or GitLab output described below. Everything runs inside the CI job, from the checkout. The only network call is the GitHub check, sent to GitHub itself.
@@ -294,7 +302,9 @@ npx apichap-ai-coding-gateway dashboard
 - **Token savings**: reduction options and the savings they produced.
 - **Settings** (from the environment menu at the bottom of the sidebar): the mode, switches for token savings, trace files and the Git pipeline report, and setting up the pipeline report for a project right away.
 
-The dashboard runs on this computer at `127.0.0.1`. Use `--port <number>` to choose a port or `--no-open` to keep it from opening a browser tab.
+The dashboard runs on this computer at `http://127.0.0.1:4717/`. It starts automatically in the background (without opening a browser) on `init`, `login` and when an agent session starts, unless it is already running. The first time you use a browser, run `npx apichap-ai-coding-gateway dashboard` once: it opens the dashboard with its access token, and the browser remembers it, so the plain URL works from then on. If the dashboard is already running, the command just opens it.
+
+Use `--port <number>` to choose another port or `--no-open` to keep it from opening a browser tab. If the port is taken by another program, the command fails.
 
 ### Rules
 
@@ -349,7 +359,7 @@ Options include removing terminal color codes and repeated output, compacting JS
 Use `npx apichap-ai-coding-gateway` or the global `apichap-gateway` command:
 
 ```bash
-npx apichap-ai-coding-gateway init --agent claude|codex       # register the hooks
+npx apichap-ai-coding-gateway init --agent claude|codex [--login [email]] [--dashboard]  # register the hooks; --login also logs in
 npx apichap-ai-coding-gateway uninstall --agent claude|codex  # remove them again
 npx apichap-ai-coding-gateway login [--email you@company.com]  # log in to your company; rules sync automatically
 npx apichap-ai-coding-gateway logout                           # end the company login; rules become editable again
