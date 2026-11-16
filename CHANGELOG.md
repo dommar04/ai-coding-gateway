@@ -2,6 +2,11 @@
 
 Notable changes for each release are listed here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+- **Dashboard autostart:** The dashboard starts in the background on `init`, `login` and agent session start, always at `http://127.0.0.1:4717/`. Run `dashboard` once per browser to connect it; the browser remembers the access token.
+- **Login during setup:** `init --login [email]` logs in to your company right after the hooks are installed.
+
 ## 1.0.1
 
 - **CLI command update:** Cleanup CLI commands
