@@ -16,6 +16,15 @@ export function setFeature(feature: Feature, on: boolean): void {
   setSetting(`feature:${feature}`, on ? "on" : "off");
 }
 
+/** Tech stacks switched off: their allow rules are ignored. All stacks are on by default. */
+export function disabledStacks(): Set<string> {
+  return new Set([...listSettings("stack:")].filter(([, v]) => v === "off").map(([k]) => k));
+}
+
+export function setStackEnabled(stack: string, on: boolean): void {
+  setSetting(`stack:${stack}`, on ? "on" : "off");
+}
+
 export type Mode = "enforce" | "monitor" | "off";
 export const MODES: Mode[] = ["enforce", "monitor", "off"];
 

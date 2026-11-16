@@ -2,6 +2,11 @@
 
 Notable changes for each release are listed here. This changelog follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+- **Default rules v16:** Rules regrouped by feature and extended to many more tech stacks (npm, pnpm, yarn, bun, Python, Go, Rust, Java, .NET, PHP, Ruby and more), with stronger secret, Git and database protection.
+- **Tech stacks:** Rules can name the tech stacks they are for. Switch stacks off on the Settings page to ignore their allow rules; deny rules always apply.
+
 ## 1.0.1
 
 - **CLI command update:** Cleanup CLI commands

@@ -16,11 +16,12 @@ import { parseRule } from "../matching/pattern";
 //   ]
 // }
 //
-// Every rule entry is { rule, note?, enabled? } (rules/rule-file.schema.json). For hand-written
+// Every rule entry is { rule, note?, enabled?, techStacks? } (rules/rule-file.schema.json). techStacks
+// lists the tech stacks an allow rule is for ("general" = all); see disabledStacks(). For hand-written
 // files, import also accepts a plain rule string as shorthand; export always writes objects.
 // Files in the older format (top-level "allow" and "deny" lists, no groups) are imported as one group.
 
-export type RuleObject = { rule: string; note?: string | null; enabled?: boolean };
+export type RuleObject = { rule: string; note?: string | null; enabled?: boolean; techStacks?: string[] };
 export type RuleEntry = RuleObject | string;
 
 export interface RuleGroupEntry {
@@ -48,6 +49,8 @@ export interface NormalizedRule {
   rule: string;
   note: string | null;
   enabled: boolean;
+  /** Tech stacks the rule is for; null means all. */
+  techStacks: string[] | null;
   /** Key of the group the rule belongs to. */
   group: string;
 }
@@ -139,7 +142,12 @@ export function parseRuleFile(file: unknown): NormalizedGroup[] {
           problems.push(`${at}: expected "Tool(pattern)" or { "rule": "Tool(pattern)", "note": "..." }.`);
           return;
         }
-        const { rule, note, enabled } = obj as { rule: string; note?: unknown; enabled?: unknown };
+        const { rule, note, enabled, techStacks } = obj as {
+          rule: string;
+          note?: unknown;
+          enabled?: unknown;
+          techStacks?: unknown;
+        };
         try {
           parseRule(rule);
         } catch (err) {
@@ -148,6 +156,9 @@ export function parseRuleFile(file: unknown): NormalizedGroup[] {
         }
         if (note !== undefined && note !== null && typeof note !== "string") problems.push(`${at}: "note" must be text.`);
         if (enabled !== undefined && typeof enabled !== "boolean") problems.push(`${at}: "enabled" must be true or false.`);
+        const stacks =
+          Array.isArray(techStacks) && techStacks.every((s) => typeof s === "string" && s.trim()) ? techStacks : null;
+        if (techStacks !== undefined && !stacks) problems.push(`${at}: "techStacks" must be a list of names, e.g. ["npm"].`);
         const key = `${effect}\n${rule.trim()}`;
         if (seenRules.has(key)) return; // duplicates are harmless; keep the first
         seenRules.add(key);
@@ -156,6 +167,7 @@ export function parseRuleFile(file: unknown): NormalizedGroup[] {
           rule: rule.trim(),
           note: typeof note === "string" && note.trim() ? note.trim() : null,
           enabled: enabled !== false,
+          techStacks: stacks?.length ? stacks.map((s: string) => s.trim().toLowerCase()) : null,
           group: group.key,
         });
       });

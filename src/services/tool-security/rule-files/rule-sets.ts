@@ -1,7 +1,22 @@
 import { transaction } from "../../../storage/database";
 import { getSetting, setSetting } from "../../../storage/tables/settings";
-import { countGroups, deleteAllGroups, getGroupByKey, insertGroup, listGroups } from "../../../storage/tables/rule-groups";
-import { countRules, deleteAllRules, fillDefaultRuleNote, insertRule, listRules } from "../../../storage/tables/tool-rules";
+import {
+  countGroups,
+  deleteAllGroups,
+  deleteEmptyDefaultGroups,
+  getGroupByKey,
+  insertGroup,
+  listGroups,
+} from "../../../storage/tables/rule-groups";
+import {
+  countRules,
+  deleteAllRules,
+  fillDefaultRuleNote,
+  fillDefaultRuleStacks,
+  insertRule,
+  listRules,
+  moveDefaultRule,
+} from "../../../storage/tables/tool-rules";
 import { currentUser } from "../../../helpers/user";
 import {
   BUILTIN_GROUPS,
@@ -51,7 +66,7 @@ export function importRules(file: unknown, mode: ImportMode, source = "import"):
         addedGroups++;
       }
       for (const r of g.rules) {
-        const id = insertRule({ effect: r.effect, rule: r.rule, note: r.note, enabled: r.enabled, source, createdBy, groupId });
+        const id = insertRule({ ...r, source, createdBy, groupId });
         if (id !== null) added++;
       }
     }
@@ -117,10 +132,17 @@ export function resetToDefaults(mode: ImportMode): ImportResult {
     const result = importRules(file, mode, "default");
     let commentsFilled = 0;
     if (mode === "merge") {
-      for (const group of parseRuleFile(file))
+      const groups = parseRuleFile(file);
+      for (const group of groups) {
+        const groupId = getGroupByKey(group.key)!.id;
         for (const rule of group.rules) {
+          // Group ids change between versions: default rules follow their group in the file.
+          moveDefaultRule(rule.effect, rule.rule, groupId);
           if (rule.note) commentsFilled += fillDefaultRuleNote(rule.effect, rule.rule, rule.note);
+          if (rule.techStacks) fillDefaultRuleStacks(rule.effect, rule.rule, rule.techStacks);
         }
+      }
+      deleteEmptyDefaultGroups(groups.map((g) => g.key));
     }
     setSetting("defaults_version", String(file.version ?? 0));
     return { ...result, commentsFilled };
@@ -163,7 +185,12 @@ export function exportRules(): RuleFile & { exportedAt: string } {
   const rows = listRules().sort((a, b) => a.id - b.id);
   const entry = (r: (typeof rows)[number]): RuleEntry => {
     // Always an object, so every entry has the same shape (see rules/rule-file.schema.json).
-    return { rule: r.rule, ...(r.note ? { note: r.note } : {}), ...(r.enabled ? {} : { enabled: false }) };
+    return {
+      rule: r.rule,
+      ...(r.note ? { note: r.note } : {}),
+      ...(r.enabled ? {} : { enabled: false }),
+      ...(r.tech_stacks ? { techStacks: JSON.parse(r.tech_stacks) as string[] } : {}),
+    };
   };
   const groups = listGroups();
   const orphans = rows.filter((r) => r.group_id === null || !groups.some((g) => g.id === r.group_id));
@@ -201,6 +228,7 @@ export function formatRuleFile(file: RuleFile & { exportedAt?: string }): string
       .replace(/^\{"rule":/, '{ "rule": ')
       .replace(/,"note":/, ', "note": ')
       .replace(/,"enabled":/, ', "enabled": ')
+      .replace(/,"techStacks":/, ', "techStacks": ')
       .replace(/\}$/, " }");
   const list = (xs: RuleEntry[], indent: string) =>
     xs.length ? `[\n${xs.map((e) => `${indent}  ${rule(e)}`).join(",\n")}\n${indent}]` : "[]";

@@ -128,7 +128,10 @@ function groupBody(g, allGroups, editing) {
     .map(
       (r) => `<tr data-id="${r.id}" class="${r.enabled ? "" : "disabled-row"}">
         <td><span class="badge b-${r.effect}">${r.effect}</span></td>
-        <td class="mono rule-cell">${esc(r.rule)}</td>
+        <td class="mono rule-cell">${esc(r.rule)}${(r.tech_stacks ? JSON.parse(r.tech_stacks) : [])
+          .filter((s) => s !== "general")
+          .map((s) => ` <span class="pill">${esc(s)}</span>`)
+          .join("")}</td>
         <td class="note-cell">${esc(r.note)}</td>
         <td class="muted">${esc(r.source)}</td>
         <td><label class="switch"><input type="checkbox" data-act="toggle" ${r.enabled ? "checked" : ""} aria-label="Rule enabled"><span></span></label></td>

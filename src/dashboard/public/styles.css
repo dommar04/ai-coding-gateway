@@ -1741,6 +1741,18 @@ dd {
   color: var(--warn);
 }
 
+.stacks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 4px 0 8px;
+}
+.stacks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ---------- strategies ---------- */
 .strat {
   display: grid;

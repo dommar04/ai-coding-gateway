@@ -17,6 +17,7 @@ function showPage(page) {
   setEnvMenu(false);
   if (page === "rules") guard(loadRules)();
   if (page === "savings") guard(loadStrategies)();
+  if (page === "settings") guard(loadStacks)();
 }
 window.addEventListener("hashchange", () => showPage(location.hash.slice(1)));
 
@@ -112,6 +113,27 @@ document.addEventListener("keydown", (e) => {
   }
 });
 // ---------- settings page ----------
+async function loadStacks() {
+  const { stacks } = await api("GET", "/api/stacks");
+  $("#stacks").innerHTML = stacks.length
+    ? stacks
+        .map((s) => `<label><input type="checkbox" data-stack="${esc(s.name)}" ${s.on ? "checked" : ""} />${esc(s.name)}</label>`)
+        .join("")
+    : '<span class="muted">No rule names a tech stack.</span>';
+}
+$("#stacks").addEventListener(
+  "change",
+  guard(async (e) => {
+    const input = e.target;
+    try {
+      await api("PUT", "/api/stacks", { name: input.dataset.stack, on: input.checked });
+      toast(`${input.dataset.stack} ${input.checked ? "on" : "off"}`);
+    } catch (err) {
+      input.checked = !input.checked; // back to the stored state
+      throw err;
+    }
+  })
+);
 const FEATURE_NAMES = { tokenSavings: "Token savings", traces: "Trace files", pipelines: "Git pipeline report" };
 $$("#page-settings [data-feature]").forEach((input) =>
   input.addEventListener(
