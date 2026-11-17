@@ -567,6 +567,18 @@ test("environment settings: features are on by default and can be switched off",
   await api("PUT", "/api/features", { feature: "tokenSavings", on: true });
 });
 
+test("environment settings: tech stacks are on by default and can be switched off", async () => {
+  const stacks = async () =>
+    ((await (await api("GET", "/api/stacks")).json()) as { stacks: Array<{ name: string; on: boolean }> }).stacks;
+  const all = await stacks();
+  assert.ok(all.every((s) => s.on && s.name !== "general"));
+  assert.equal((await api("PUT", "/api/stacks", { name: "nope", on: false })).status, 400);
+  const name = all[0].name;
+  assert.equal((await api("PUT", "/api/stacks", { name, on: false })).status, 200);
+  assert.equal((await stacks()).find((s) => s.name === name)?.on, false);
+  await api("PUT", "/api/stacks", { name, on: true });
+});
+
 test("environment settings: the gateway skips token savings, trace files and the CI report when they are off", async () => {
   const { afterToolCall } = await import("../src/services/gateway");
   const project = mkdtempSync(join(dir, "project-"));

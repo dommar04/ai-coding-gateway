@@ -36,7 +36,18 @@ import {
 } from "../services/tool-security/rule-files/rule-sets";
 import type { Verdict } from "../services/tool-security/matching/engine";
 import { parseJsonOrText } from "../helpers/json";
-import { FEATURES, MODES, features, getMode, setFeature, setMode, type Feature, type Mode } from "../services/settings";
+import {
+  FEATURES,
+  MODES,
+  disabledStacks,
+  features,
+  getMode,
+  setFeature,
+  setMode,
+  setStackEnabled,
+  type Feature,
+  type Mode,
+} from "../services/settings";
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import { setUpPipelines } from "../services/pipeline/pipelines";
 import { managed } from "../services/company/session";
@@ -47,6 +58,7 @@ import {
   evaluateCall,
   listGroups,
   listRules,
+  listStacks,
   moveRule,
   removeGroup,
   removeRule,
@@ -530,6 +542,20 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       if (managed() && body.feature !== "tokenSavings") throw new HttpError(403, "Rules are managed by your company.");
       setFeature(body.feature as Feature, body.on);
       return sendJson(res, 200, { features: features() });
+    }
+
+    if (path === "/api/stacks") {
+      if (method === "GET") {
+        const off = disabledStacks();
+        return sendJson(res, 200, { stacks: listStacks().map((name) => ({ name, on: !off.has(name) })) });
+      }
+      if (method === "PUT") {
+        const body = await readBody(req);
+        if (typeof body.name !== "string" || !listStacks().includes(body.name) || typeof body.on !== "boolean")
+          throw new HttpError(400, "Expected { name: <stack>, on: boolean }");
+        setStackEnabled(body.name, body.on);
+        return sendJson(res, 200, { ok: true });
+      }
     }
 
     if (path === "/api/pipelines" && method === "POST") {

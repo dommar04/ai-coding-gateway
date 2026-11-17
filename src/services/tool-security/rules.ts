@@ -1,5 +1,6 @@
 import { homedir } from "node:os";
 import { currentUser } from "../../helpers/user";
+import { disabledStacks } from "../settings";
 import * as groupTable from "../../storage/tables/rule-groups";
 import * as ruleTable from "../../storage/tables/tool-rules";
 import { evaluate, type Rule, type Verdict } from "./matching/engine";
@@ -106,7 +107,28 @@ export interface RuleSource {
   loadRules(): Rule[];
 }
 
-export const localRuleSource: RuleSource = { loadRules: () => ruleTable.listRules({ enabledOnly: true }) };
+/** Deny rules always count; an allow rule counts unless every stack it is for is switched off. */
+export function stackActive(rule: Pick<ruleTable.RuleRow, "effect" | "tech_stacks">, off: Set<string>): boolean {
+  if (rule.effect === "deny" || !rule.tech_stacks) return true;
+  const stacks = JSON.parse(rule.tech_stacks) as string[];
+  return !stacks.length || stacks.some((s) => s === "general" || !off.has(s));
+}
+
+/** Stacks named by any allow rule, without "general". Deny rules always apply, so their stacks switch nothing. */
+export function listStacks(): string[] {
+  const names = ruleTable
+    .listRules()
+    .filter((r) => r.effect === "allow")
+    .flatMap((r) => (r.tech_stacks ? (JSON.parse(r.tech_stacks) as string[]) : []));
+  return [...new Set(names)].filter((s) => s !== "general").sort();
+}
+
+export const localRuleSource: RuleSource = {
+  loadRules: () => {
+    const off = disabledStacks();
+    return ruleTable.listRules({ enabledOnly: true }).filter((r) => stackActive(r, off));
+  },
+};
 let activeRuleSource: RuleSource = localRuleSource;
 
 export function setRuleSource(source: RuleSource): void {

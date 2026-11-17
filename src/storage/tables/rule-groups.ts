@@ -68,6 +68,15 @@ export function deleteGroup(id: number): boolean {
   return sql(`DELETE FROM rule_groups WHERE id = ?`).run(id).changes > 0;
 }
 
+/** Deletes default groups that have no rules left and whose key is not in keep. */
+export function deleteEmptyDefaultGroups(keep: string[]): number {
+  const unkept = keep.length ? `AND key NOT IN (${keep.map(() => "?").join(", ")})` : "";
+  return Number(
+    sql(`DELETE FROM rule_groups WHERE source = 'default' ${unkept}
+         AND NOT EXISTS (SELECT 1 FROM tool_rules WHERE group_id = rule_groups.id)`).run(...keep).changes
+  );
+}
+
 export function deleteAllGroups(): number {
   return Number(sql(`DELETE FROM rule_groups`).run().changes);
 }

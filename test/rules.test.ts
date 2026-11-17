@@ -109,7 +109,7 @@ test("git is allowed broadly, risky git is denied", () => {
     ["git push origin :feature", "git push * :*"],
     ["git checkout -- src/a.ts", "git checkout -- *"],
     ["git stash clear", "git stash clear*"],
-    ["git -c core.sshCommand=evil fetch", "git -c *"],
+    ["git -c core.fsmonitor=evil status", "git -c *"],
     ["git config alias.x '!rm -rf /'", "git config *alias.*"],
     ["git config --global user.name x", "git config --global *"],
     ["git filter-branch --tree-filter x", "git filter-branch*"],
@@ -310,7 +310,7 @@ test("deny message tells the agent the user can allow the call from the dashboar
 
   // A deny rule's message names the policy it belongs to.
   const blocked = bash("rm -rf dist");
-  assert.match(denyMessage("Bash", blocked), /Policy: The agent is not allowed to delete files\./);
+  assert.match(denyMessage("Bash", blocked), /Policy: Prevent file and directory deletion\./);
 });
 
 test("the default rule file is grouped, uses objects only and matches its schema", () => {
@@ -320,12 +320,11 @@ test("the default rule file is grouped, uses objects only and matches its schema
   assert.equal(file.deny, undefined, "no rules outside groups");
   for (const g of file.groups) {
     assert.match(g.id, /^[a-z0-9][a-z0-9-]*$/, g.id);
-    assert.match(g.title, /^The agent is (not )?allowed to /, `${g.id}: the title says what the agent may or may not do`);
+    assert.ok(g.title.trim(), `${g.id} has a title`);
     assert.ok(g.description, `${g.id} explains why`);
     assert.ok((g.allow?.length ?? 0) + (g.deny?.length ?? 0) > 0, `${g.id} has rules`);
-    // A group reads as one policy: "not allowed" groups block, "allowed" groups allow.
-    const blocks = g.title.includes("not allowed");
-    assert.equal(blocks ? g.allow : g.deny, undefined, `${g.id}: rules match the title`);
+    // A group is one policy: it either blocks or allows, never both.
+    assert.ok(!(g.allow?.length && g.deny?.length), `${g.id}: only allow or only deny rules`);
   }
   const entries = file.groups.flatMap((g) => [...(g.allow ?? []), ...(g.deny ?? [])]);
   assert.ok(entries.length > 100);
@@ -335,8 +334,14 @@ test("the default rule file is grouped, uses objects only and matches its schema
     "every entry is an object with a rule"
   );
   assert.ok(
-    entries.every((e) => typeof e === "object" && Object.keys(e).every((k) => ["rule", "note", "enabled"].includes(k))),
+    entries.every(
+      (e) => typeof e === "object" && Object.keys(e).every((k) => ["rule", "note", "enabled", "techStacks"].includes(k))
+    ),
     "no unknown fields"
+  );
+  assert.ok(
+    entries.every((e) => typeof e === "object" && e.techStacks?.length),
+    "every default rule names its tech stacks"
   );
   assert.equal(file.$schema, "./rule-file.schema.json");
 });
@@ -379,6 +384,43 @@ test("scripts may run, inline code and code-injecting environment variables may 
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
+  }
+});
+
+test("wrappers, late flags and URL installs do not slip past deny rules", () => {
+  for (const cmd of [
+    "bundle exec rm -rf src",
+    "bundle exec sh -c id",
+    "tsx -e 'x'",
+    "npx tsx --no-warnings --eval 'x'",
+    "node --no-warnings -e 'x'",
+    "python3 -I -c 'x'",
+    "ruby -w -e 'x'",
+    "php -n -r 'x'",
+    "kotlin -e 'x'",
+    "pip install git+https://example.com/x.git",
+    "pip3 install https://example.com/x.tar.gz",
+    "go env -w GOFLAGS=-toolexec=/tmp/x",
+    "go build -toolexec /tmp/x ./...",
+    "GOFLAGS=-toolexec=/tmp/x go build ./...",
+    "npm audit fix --force",
+    "cat .env",
+    'cat ".env"',
+    "cat <.env",
+  ]) {
+    assert.equal(bash(cmd).decision, "deny", cmd);
+  }
+  for (const cmd of [
+    "grep -rn process.env src",
+    "grep -rn import.meta.env src",
+    "git stash pop",
+    "git branch -d old",
+    "npm audit",
+    "go env GOPATH",
+    "bundle exec rspec spec",
+    "pip install requests",
+  ]) {
+    assert.equal(bash(cmd).decision, "allow", cmd);
   }
 });
 

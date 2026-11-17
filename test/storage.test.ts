@@ -134,12 +134,106 @@ test("migration 003 puts existing rules into groups without adding or removing a
         key: string;
       }
     ).key;
-  assert.equal(groupOf("Shell(rm *)"), "no-deleting-files");
+  assert.equal(groupOf("Shell(rm *)"), "filesystem-deletion-protection");
   assert.equal(groupOf("Read"), "previous-defaults");
   assert.equal(groupOf("Shell(docker *)"), "approved");
   assert.equal(groupOf("Shell(curl *)"), "custom");
   assert.equal((mem.prepare(`SELECT COUNT(*) AS n FROM tool_rules WHERE group_id IS NULL`).get() as { n: number }).n, 0);
   mem.close();
+});
+
+test("tech stacks: switching a stack off ignores its allow rules, never its deny rules", async () => {
+  const sec = await import("../src/services/tool-security/rules");
+  const { setStackEnabled } = await import("../src/services/settings");
+  const { exportRules } = await import("../src/services/tool-security/rule-files/rule-sets");
+  const run = (command: string) => sec.evaluateCall("Bash", { command }, process.cwd()).decision;
+
+  // Fresh databases carry the stacks of the default rules; only allow rules offer a stack switch.
+  assert.ok(sec.listStacks().includes("python"));
+  assert.ok(!sec.listStacks().includes("general"));
+  const allowStacks = new Set(
+    rules
+      .listRules()
+      .filter((r) => r.effect === "allow" && r.tech_stacks)
+      .flatMap((r) => JSON.parse(r.tech_stacks!) as string[])
+  );
+  assert.ok(sec.listStacks().every((s) => allowStacks.has(s)));
+  assert.equal(run("pytest tests"), "allow");
+  assert.equal(run("npm publish"), "deny");
+
+  setStackEnabled("python", false);
+  setStackEnabled("npm", false);
+  try {
+    assert.equal(run("pytest tests"), "deny", "allow rule of a switched-off stack is ignored");
+    assert.equal(run("ls src"), "allow", "general rules still apply");
+    assert.equal(run("npm publish"), "deny", "deny rule of a switched-off stack still applies");
+    const npmPublish = sec.evaluateCall("Bash", { command: "npm publish" }, process.cwd());
+    assert.equal(
+      npmPublish.decision === "deny" && npmPublish.reason === "rule" ? npmPublish.rule.rule : "",
+      "Shell(npm publish*)"
+    );
+  } finally {
+    setStackEnabled("python", true);
+    setStackEnabled("npm", true);
+  }
+
+  // Export keeps the stacks, so the file can be imported again.
+  const entries = exportRules().groups!.flatMap((g) => [...(g.allow ?? []), ...(g.deny ?? [])]);
+  assert.ok(entries.some((e) => typeof e === "object" && e.rule === "Shell(pytest *)" && e.techStacks?.includes("python")));
+});
+
+test("tech stacks: allowing a call from the activity works even when its stack is off", async () => {
+  const sec = await import("../src/services/tool-security/rules");
+  const { setStackEnabled } = await import("../src/services/settings");
+  const run = (command: string) => sec.evaluateCall("Bash", { command }, process.cwd()).decision;
+  setStackEnabled("python", false);
+  try {
+    assert.equal(run("mypy src"), "deny");
+    rules.upsertEnabledRule({
+      effect: "allow",
+      rule: "Shell(mypy *)",
+      note: null,
+      source: "activity",
+      createdBy: "t",
+      groupId: newGroup("test-approved-stack"),
+    });
+    assert.equal(run("mypy src"), "allow");
+  } finally {
+    setStackEnabled("python", true);
+  }
+});
+
+test("merging new defaults moves default rules into the renamed groups", async () => {
+  const { importRules, resetToDefaults } = await import("../src/services/tool-security/rule-files/rule-sets");
+  const { loadDefaultRuleFile, parseRuleFile } = await import("../src/services/tool-security/rule-files/rule-file");
+  // An older default version with other group ids, one of them switched off.
+  importRules(
+    {
+      version: 1,
+      groups: [
+        { id: "old-git", title: "Old git", allow: ["Shell(git *)"], deny: ["Shell(git reset --hard*)"] },
+        { id: "old-scripts", title: "Old scripts", enabled: false, allow: ["Shell(npm run *)"] },
+      ],
+    },
+    "replace",
+    "default"
+  );
+  try {
+    resetToDefaults("merge");
+    assert.equal(groups.getGroupByKey("old-git"), undefined);
+    assert.equal(groups.getGroupByKey("old-scripts"), undefined);
+    const keyOf = new Map(groups.listGroups().map((g) => [g.id, g.key]));
+    for (const g of parseRuleFile(loadDefaultRuleFile()))
+      for (const r of g.rules) {
+        const row = rules.listRules().find((x) => x.effect === r.effect && x.rule === r.rule)!;
+        assert.equal(keyOf.get(row.group_id!), g.key, r.rule);
+      }
+    const npmRun = rules.listRules().find((r) => r.rule === "Shell(npm run *)")!;
+    assert.equal(npmRun.enabled, 0, "a rule from a switched-off group stays off");
+    assert.equal(npmRun.group_title, "Execute project scripts and language programs");
+  } finally {
+    resetToDefaults("replace");
+  }
 });
 
 test("approval requests are gone: no table, and the call log has no link to them", () => {
