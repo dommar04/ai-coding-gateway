@@ -161,7 +161,7 @@ Add `--login [email]` to log in to your company right after the hooks are instal
 npx apichap-ai-coding-gateway init --agent claude --login you@company.com --dashboard
 ```
 
-`init` also starts the dashboard in the background (`--dashboard` is accepted but not needed). See [Dashboard](#dashboard).
+`init` also starts the dashboard and opens it in your browser (after the login, with `--login`; `--dashboard` is accepted but not needed). See [Dashboard](#dashboard).
 
 ### AI change report in CI
 
@@ -302,7 +302,7 @@ npx apichap-ai-coding-gateway dashboard
 - **Token savings**: reduction options and the savings they produced.
 - **Settings** (from the environment menu at the bottom of the sidebar): the mode, switches for token savings, trace files and the Git pipeline report, and setting up the pipeline report for a project right away.
 
-The dashboard runs on this computer at `http://127.0.0.1:4717/`. It starts automatically in the background (without opening a browser) on `init`, `login` and when an agent session starts, unless it is already running. The first time you use a browser, run `npx apichap-ai-coding-gateway dashboard` once: it opens the dashboard with its access token, and the browser remembers it, so the plain URL works from then on. If the dashboard is already running, the command just opens it.
+The dashboard runs on this computer at `http://127.0.0.1:4717/`. It keeps running in the background. `init` and `login` start it if needed and open it in your browser with its access token; the browser remembers the token, so the plain URL works from then on. When an agent session starts, the dashboard is started if needed, without opening a browser. In another browser, run `npx apichap-ai-coding-gateway dashboard` once to connect it. If the dashboard is already running, the command just opens it.
 
 Use `--port <number>` to choose another port or `--no-open` to keep it from opening a browser tab. If the port is taken by another program, the command fails.
 

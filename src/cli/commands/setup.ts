@@ -26,14 +26,13 @@ export async function runInit(args: string[]): Promise<void> {
   console.log("");
   console.log(`New ${integration.name} sessions are now tracked. The default mode is enforce; existing mode settings are kept.`);
   if (integration.setupNotes) console.log(integration.setupNotes);
-  await ensureDashboard();
-  console.log(
-    `Dashboard: ${DASHBOARD_URL} (runs in the background; first time in a browser: npx apichap-ai-coding-gateway dashboard)`
-  );
+  console.log(`Dashboard: ${DASHBOARD_URL} (runs in the background; opens in your browser${flags.login ? " after login" : ""})`);
   if (!flags.login) {
     console.log("Log in to sync your company rules:  npx apichap-ai-coding-gateway login");
+    await ensureDashboard(true);
     return;
   }
+  // login starts and opens the dashboard after the password prompt, so the tab does not take the focus first.
   await runLogin([
     ...(typeof flags.login === "string" ? ["--email", flags.login] : []),
     ...(typeof flags.server === "string" ? ["--server", flags.server] : []),
