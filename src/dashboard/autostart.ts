@@ -25,15 +25,20 @@ export function portInUse(port = DASHBOARD_PORT): Promise<boolean> {
   });
 }
 
-/** Starts the dashboard in the background (no browser) unless something already runs on its port. Never throws. */
-export async function ensureDashboard(): Promise<void> {
+/**
+ * Starts the dashboard in the background unless something already runs on its port. Never throws.
+ * open: also open it in the browser (interactive commands only; the hooks never open it).
+ */
+export async function ensureDashboard(open = false): Promise<void> {
   try {
     // Built entry only: from src (tests, tsx) there is nothing to start.
     const entry = join(__dirname, "..", "main.js");
-    if (!existsSync(entry) || (await portInUse())) return;
+    // With open, always start the child: if a dashboard already runs, the child checks that it is ours
+    // and only opens the browser (the token in the URL never goes to another program on the port).
+    if (!existsSync(entry) || (!open && (await portInUse()))) return;
     // cwd: home, so the long-lived child does not lock the agent's project folder (Windows).
     // Some spawn failures (EAGAIN, EMFILE, ENOENT) arrive as an async 'error' event, not a throw.
-    spawn(process.execPath, [entry, "dashboard", "--no-open"], {
+    spawn(process.execPath, [entry, "dashboard", ...(open ? [] : ["--no-open"])], {
       cwd: homedir(),
       detached: true,
       stdio: "ignore",

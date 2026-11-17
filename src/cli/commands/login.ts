@@ -46,7 +46,7 @@ export async function runLogin(args: string[]): Promise<void> {
     console.log(`✔ Logged in as ${email}. The first sync failed (${err instanceof Error ? err.message : String(err)}).`);
     console.log("  It is retried when the next agent session starts.");
   }
-  await ensureDashboard();
+  await ensureDashboard(true);
 }
 
 export function runLogout(): void {
