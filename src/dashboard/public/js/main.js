@@ -66,16 +66,8 @@ function renderStats() {
   $('nav.menu a[data-page="savings"]').hidden = !savings;
   $(".stat-saved").hidden = !savings;
   if (!savings && state.page === "savings") location.hash = "calls";
-  // Optional hint line under the modes. "off" has no button here; it is set on the settings page.
-  const hint = $("#mode-hint");
-  if (hint) {
-    const active = $(`#modes button[data-mode="${s.mode}"]`);
-    hint.textContent = s.modeLocked
-      ? "Mode set by your company."
-      : active
-        ? active.dataset.hint
-        : "Checks are off (Settings). Pick a mode to turn them on.";
-  }
+  // "Set by your company" lines in the sidebar and on the settings page.
+  $$("[data-mode-lock]").forEach((el) => (el.hidden = !s.modeLocked));
   // Two stat cards, for all projects: "saved 11k of 74k", and denied calls.
   const t = s.tokens || {};
   const share = pct(t.savedTokens, t.resultTokens);

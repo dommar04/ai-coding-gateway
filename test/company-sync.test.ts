@@ -192,6 +192,29 @@ test("company enforcement mode: enforce/monitor override the local mode, develop
   }
 });
 
+test("dashboard syncs on start, so a company mode arrives without an agent prompt", async () => {
+  m.storeTokens({ access_token: "tok-1", refresh_token: "ref-1", expires_in: 3600 }, "dev@company.test");
+  m.setSetting("company:last_sync", "0");
+  m.setSetting("company:last_attempt", "0");
+  const calls = stubFetch(() => [200, { ...BUNDLE, config: { ...BUNDLE.config, enforcement_mode: "monitor" } }]);
+  const { startDashboard } = await import("../src/dashboard/server");
+  const dashboard = await startDashboard({ port: 0, token: "t", pollMs: 1000 });
+  try {
+    for (let i = 0; i < 200 && m.getSetting("company:mode") !== "monitor"; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.equal(calls.filter((c) => c.path === "/client/sync").length, 1);
+    globalThis.fetch = realFetch;
+    const stats = await (
+      await fetch(`http://127.0.0.1:${dashboard.port}/api/stats`, { headers: { "X-Gateway-Token": "t" } })
+    ).json();
+    assert.equal(stats.mode, "monitor");
+    assert.equal(stats.modeLocked, true);
+  } finally {
+    globalThis.fetch = realFetch;
+    await dashboard.close();
+    m.setSetting("company:mode", "developers_choice");
+  }
+});
+
 test("a failed login keeps the previous server", async () => {
   const { login } = await import("../src/services/company/session");
   m.setSetting("server_url", "https://old.test");
