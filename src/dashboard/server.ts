@@ -51,7 +51,7 @@ import {
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import { setUpPipelines } from "../services/pipeline/pipelines";
 import { managed } from "../services/company/session";
-import { getSetting } from "../storage/tables/settings";
+import { addSetting, getSetting } from "../storage/tables/settings";
 import {
   addGroup,
   addRule,
@@ -66,13 +66,11 @@ import {
   updateGroup,
 } from "../services/tool-security/rules";
 
-// Local-only dashboard. It can change policy, so every API call needs the per-run token
+// Local-only dashboard. It can change policy, so every API call needs the per-machine token
 // (blocks other websites from calling it) and a localhost Host header (blocks DNS rebinding).
 
 export interface DashboardOptions {
   port: number;
-  /** Try the next ports if `port` is taken. */
-  portFallback?: boolean;
   token?: string;
   pollMs?: number;
 }
@@ -285,7 +283,13 @@ export function openBrowser(url: string): void {
 }
 
 export async function startDashboard(options: DashboardOptions): Promise<Dashboard> {
-  const token = options.token ?? randomBytes(18).toString("base64url");
+  // One token per machine, so the browser can remember it.
+  let token = options.token ?? getSetting("dashboard:token");
+  if (!token) {
+    // Insert-if-missing then re-read: two first starts at once agree on one token.
+    addSetting("dashboard:token", randomBytes(18).toString("base64url"));
+    token = getSetting("dashboard:token") as string;
+  }
   let port = options.port;
 
   // ---------- live feed: one poller for all SSE clients ----------
@@ -609,26 +613,18 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
     }
   });
 
-  const tries = options.portFallback ? 10 : 1;
-  for (let attempt = 0; attempt < tries; attempt++) {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(port, "127.0.0.1", () => {
-          server.off("error", reject);
-          resolve();
-        });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
       });
-      break;
-    } catch (err) {
-      const code = (err as NodeJS.ErrnoException).code;
-      if (code !== "EADDRINUSE" || attempt === tries - 1) {
-        clearInterval(pollTimer);
-        clearInterval(heartbeat);
-        throw err;
-      }
-      port++;
-    }
+    });
+  } catch (err) {
+    clearInterval(pollTimer);
+    clearInterval(heartbeat);
+    throw err;
   }
   const address = server.address();
   if (address && typeof address === "object") port = address.port;

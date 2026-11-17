@@ -10,6 +10,11 @@ export function setSetting(key: string, value: string): void {
   sql(`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`).run(key, value);
 }
 
+/** Stores `value` only when `key` has no value yet (concurrent writers: the first one wins). */
+export function addSetting(key: string, value: string): void {
+  sql(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`).run(key, value);
+}
+
 /** All settings whose key starts with `prefix`, keyed without the prefix. */
 export function listSettings(prefix: string): Map<string, string> {
   const rows = sql(`SELECT key, value FROM settings WHERE substr(key, 1, ?) = ?`).all(prefix.length, prefix) as Array<{

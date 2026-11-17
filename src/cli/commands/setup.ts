@@ -5,10 +5,12 @@ import { parseArgs } from "../helper/args";
 import { logError } from "../../helpers/errors";
 import { managed } from "../../services/company/session";
 import { syncNow } from "../../services/company/sync";
+import { DASHBOARD_URL, ensureDashboard } from "../../dashboard/autostart";
+import { runLogin } from "./login";
 
 // init / uninstall: register or remove the selected integration's hooks.
 
-export function runInit(args: string[]): void {
+export async function runInit(args: string[]): Promise<void> {
   const { flags } = parseArgs(args);
   const integration = integrationFor(typeof flags.agent === "string" ? flags.agent : undefined);
   const path = typeof flags.settings === "string" ? flags.settings : undefined;
@@ -24,8 +26,18 @@ export function runInit(args: string[]): void {
   console.log("");
   console.log(`New ${integration.name} sessions are now tracked. The default mode is enforce; existing mode settings are kept.`);
   if (integration.setupNotes) console.log(integration.setupNotes);
-  console.log("Open the dashboard:  npx apichap-ai-coding-gateway dashboard");
-  console.log("Log in to sync your company rules:  npx apichap-ai-coding-gateway login");
+  await ensureDashboard();
+  console.log(
+    `Dashboard: ${DASHBOARD_URL} (runs in the background; first time in a browser: npx apichap-ai-coding-gateway dashboard)`
+  );
+  if (!flags.login) {
+    console.log("Log in to sync your company rules:  npx apichap-ai-coding-gateway login");
+    return;
+  }
+  await runLogin([
+    ...(typeof flags.login === "string" ? ["--email", flags.login] : []),
+    ...(typeof flags.server === "string" ? ["--server", flags.server] : []),
+  ]);
 }
 
 export async function runUninstall(args: string[]): Promise<void> {

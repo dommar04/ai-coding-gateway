@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
+import { createServer as createNetServer, type AddressInfo } from "node:net";
 
 // Point the gateway at a throwaway database before any gateway module is loaded.
 const dir = mkdtempSync(join(tmpdir(), "apichap-gateway-test-"));
@@ -610,4 +611,32 @@ test("environment settings: the gateway skips token savings, trace files and the
   assert.equal(existsSync(workflow), false);
 
   for (const f of ["traces", "pipelines", "tokenSavings"] as const) store.setFeature(f, true);
+});
+
+test("token is created once and reused", async () => {
+  const { startDashboard } = await import("../src/dashboard/server");
+  const { addSetting, getSetting } = await import("../src/storage/tables/settings");
+  const first = await startDashboard({ port: 0, pollMs: 1000 });
+  await first.close();
+  addSetting("dashboard:token", "late-writer"); // a racing start must not replace the stored token
+  assert.equal(getSetting("dashboard:token"), first.token);
+  const second = await startDashboard({ port: 0, pollMs: 1000 });
+  await second.close();
+  assert.equal(first.token, second.token);
+  assert.equal(first.token, getSetting("dashboard:token"));
+});
+
+test("busy port is an error", async () => {
+  const { startDashboard } = await import("../src/dashboard/server");
+  await assert.rejects(startDashboard({ port: dashboard.port, token: "x" }), { code: "EADDRINUSE" });
+});
+
+test("portInUse", async () => {
+  const { portInUse } = await import("../src/dashboard/autostart");
+  assert.equal(await portInUse(dashboard.port), true);
+  const probe = createNetServer();
+  await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+  const closed = (probe.address() as AddressInfo).port;
+  await new Promise((resolve) => probe.close(resolve));
+  assert.equal(await portInUse(closed), false);
 });

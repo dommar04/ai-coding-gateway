@@ -19,7 +19,7 @@ export const COMMANDS: Record<string, Command> = {
 };
 
 export const USAGE = [
-  "  apichap-gateway init --agent claude|codex [--installed | --local] [--settings path]   (register agent hooks)",
+  "  apichap-gateway init --agent claude|codex [--login [email]] [--dashboard] [--installed | --local] [--settings path]   (register agent hooks; --login also logs in; the dashboard starts in the background)",
   "  apichap-gateway uninstall --agent claude|codex [--settings path]  (remove the hooks again)",
   "  apichap-gateway login [--email you@company.com] [--server url]   (log in to your company; rules sync automatically)",
   "  apichap-gateway logout   (end the company login; rules become editable again)",

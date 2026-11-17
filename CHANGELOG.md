@@ -6,6 +6,8 @@ Notable changes for each release are listed here. This changelog follows [Keep a
 
 - **Default rules v16:** Rules regrouped by feature and extended to many more tech stacks (npm, pnpm, yarn, bun, Python, Go, Rust, Java, .NET, PHP, Ruby and more), with stronger secret, Git and database protection.
 - **Tech stacks:** Rules can name the tech stacks they are for. Switch stacks off on the Settings page to ignore their allow rules; deny rules always apply.
+- **Dashboard autostart:** The dashboard starts in the background on `init`, `login` and agent session start, always at `http://127.0.0.1:4717/`. Run `dashboard` once per browser to connect it; the browser remembers the access token.
+- **Login during setup:** `init --login [email]` logs in to your company right after the hooks are installed.
 
 ## 1.0.1
 
