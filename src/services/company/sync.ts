@@ -20,6 +20,8 @@ export interface CompanyConfig {
   sync_denied_activities: boolean;
   enable_traces: boolean;
   enable_github_pipeline: boolean;
+  // Missing on older servers: treated as developers_choice.
+  enforcement_mode?: "enforce" | "monitor" | "developers_choice";
 }
 
 export interface SyncBundle {
@@ -70,6 +72,8 @@ export async function syncNow(hooksInstalled: boolean): Promise<{ version: numbe
     const result = importRules(toRuleFile(bundle), "replace", "company");
     setFeature("traces", cfg.enable_traces);
     setFeature("pipelines", cfg.enable_github_pipeline);
+    // Read by getMode(); the developer's own mode stays stored underneath. Logout deletes it.
+    setSetting("company:mode", cfg.enforcement_mode ?? "developers_choice");
     setSetting("company:config", JSON.stringify(cfg));
     setSetting("company:version", String(bundle.version));
     setSetting("company:last_sync", String(Date.now()));

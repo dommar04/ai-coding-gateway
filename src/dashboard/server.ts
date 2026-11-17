@@ -41,7 +41,8 @@ import {
   MODES,
   disabledStacks,
   features,
-  getMode,
+  companyMode,
+  effectiveMode,
   setFeature,
   setMode,
   setStackEnabled,
@@ -192,11 +193,12 @@ function toVerdict(v: Verdict) {
 
 function stats() {
   return {
-    mode: getMode(),
+    mode: effectiveMode(),
     features: features(),
     activeRules: countEnabledRules(),
     deniedCalls: countDeniedCalls(),
     tokens: tokenTotals(),
+    modeLocked: companyMode() !== undefined,
   };
 }
 
@@ -525,8 +527,9 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
     }
 
     if (path === "/api/mode") {
-      if (method === "GET") return sendJson(res, 200, { mode: getMode() });
+      if (method === "GET") return sendJson(res, 200, { mode: effectiveMode() });
       if (method === "PUT") {
+        if (companyMode()) throw new HttpError(403, "Mode is managed by your company.");
         const body = await readBody(req);
         if (!MODES.includes(body.mode as Mode)) throw new HttpError(400, `mode must be one of ${MODES.join(", ")}`);
         setMode(body.mode as Mode);

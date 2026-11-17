@@ -1788,7 +1788,8 @@ dd {
   background: var(--code);
   color: var(--text);
 }
-.seg button:disabled {
+.seg button:disabled,
+.modes button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }

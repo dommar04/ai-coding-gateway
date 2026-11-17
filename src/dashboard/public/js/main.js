@@ -49,6 +49,10 @@ function renderStats() {
   $$("#modes button, #set-mode button").forEach((b) => {
     b.classList.toggle("on", b.dataset.mode === s.mode);
     b.setAttribute("aria-pressed", String(b.dataset.mode === s.mode));
+    b.disabled = !!s.modeLocked;
+    // Keep the button's own tooltip to restore after a lock.
+    b.dataset.title ??= b.title;
+    b.title = s.modeLocked ? "Set by your company" : b.dataset.title;
   });
   // Features: the settings page's switches; token savings off hides its page, menu item and stat card.
   $$("#page-settings [data-feature]").forEach((input) => (input.checked = featureOn(input.dataset.feature)));
@@ -66,7 +70,11 @@ function renderStats() {
   const hint = $("#mode-hint");
   if (hint) {
     const active = $(`#modes button[data-mode="${s.mode}"]`);
-    hint.textContent = active ? active.dataset.hint : "Checks are off (Settings). Pick a mode to turn them on.";
+    hint.textContent = s.modeLocked
+      ? "Mode set by your company."
+      : active
+        ? active.dataset.hint
+        : "Checks are off (Settings). Pick a mode to turn them on.";
   }
   // Two stat cards, for all projects: "saved 11k of 74k", and denied calls.
   const t = s.tokens || {};
