@@ -52,6 +52,7 @@ import {
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import { setUpPipelines } from "../services/pipeline/pipelines";
 import { managed } from "../services/company/session";
+import { maybeSync } from "../services/company/sync";
 import { addSetting, getSetting } from "../storage/tables/settings";
 import {
   addGroup,
@@ -632,6 +633,12 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
   const address = server.address();
   if (address && typeof address === "object") port = address.port;
 
+  // Portal changes (mode, rules) also arrive without an agent prompt: once a minute while idle. maybeSync never throws.
+  const sync = () =>
+    void maybeSync({ hooksInstalled: () => ["claude", "codex"].some((id) => integrationFor(id).hooksInstalled()) });
+  sync();
+  const syncTimer = setInterval(sync, 60_000);
+
   return {
     server,
     port,
@@ -641,6 +648,7 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       new Promise<void>((resolve) => {
         clearInterval(pollTimer);
         clearInterval(heartbeat);
+        clearInterval(syncTimer);
         for (const client of clients) client.end();
         clients.clear();
         server.close(() => resolve());

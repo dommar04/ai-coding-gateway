@@ -82,7 +82,7 @@ export async function syncNow(hooksInstalled: boolean): Promise<{ version: numbe
 }
 
 /** Syncs when logged in and the last attempt is 10+ seconds old. Never throws: a failed sync keeps the last rules. */
-export async function maybeSync(integration: Integration): Promise<void> {
+export async function maybeSync(integration: Pick<Integration, "hooksInstalled">): Promise<void> {
   try {
     if (!managed()) return;
     const last = Math.max(Number(getSetting("company:last_sync") ?? 0), Number(getSetting("company:last_attempt") ?? 0));

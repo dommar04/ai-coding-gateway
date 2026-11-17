@@ -346,7 +346,7 @@ Choose the mode in the dashboard sidebar or under **Settings**:
 | `monitor`           | Checks and records calls, including ones that would be denied, but lets them run.                        |
 | `off`               | Skips rule checks and records calls.                                                                     |
 
-The selected mode is saved and remembered after a restart. `APICHAP_GATEWAY_MODE` overrides the saved setting when set. When logged in, the company can fix the mode to Enforce or Monitor (the dashboard then locks it), or leave it to the developer. Your own mode stays saved and applies again once the company releases it or you log out. `APICHAP_GATEWAY_MODE` still overrides it.
+The selected mode is saved and remembered after a restart. `APICHAP_GATEWAY_MODE` overrides the saved setting when set. When logged in, the company can fix the mode to Enforce or Monitor (the dashboard then locks it), or leave it to the developer. Your own mode stays saved and applies again once the company releases it or you log out. `APICHAP_GATEWAY_MODE` still overrides it. A locked mode shows "Set by your company" in the dashboard. The running dashboard also syncs with the company every minute, so a change in the portal arrives without an agent prompt.
 
 ### Token reduction
 
