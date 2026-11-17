@@ -28,8 +28,15 @@ export function setStackEnabled(stack: string, on: boolean): void {
 export type Mode = "enforce" | "monitor" | "off";
 export const MODES: Mode[] = ["enforce", "monitor", "off"];
 
+/** Mode fixed by the company (enforce/monitor) while logged in. Synced; logout deletes it. */
+export function companyMode(): Mode | undefined {
+  const value = getSetting("company:mode");
+  return value === "enforce" || value === "monitor" ? value : undefined;
+}
+
+/** The company's mode if it fixed one, else the developer's own. */
 export function getMode(): Mode {
-  const value = getSetting("mode");
+  const value = companyMode() ?? getSetting("mode");
   return MODES.includes(value as Mode) ? (value as Mode) : "enforce";
 }
 

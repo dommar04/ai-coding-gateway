@@ -147,6 +147,51 @@ test("dashboard: rule changes are blocked while managed, testing a call still wo
   }
 });
 
+test("company enforcement mode: enforce/monitor override the local mode, developers_choice, missing or logout restore it", async () => {
+  const { logout } = await import("../src/services/company/session");
+  const syncWith = async (config: Record<string, unknown>) => {
+    stubFetch(() => [200, { ...BUNDLE, config: { ...BUNDLE.config, ...config } }]);
+    await m.syncNow(true);
+    globalThis.fetch = realFetch;
+  };
+  globalThis.fetch = realFetch;
+  const { startDashboard } = await import("../src/dashboard/server");
+  const dashboard = await startDashboard({ port: 0, token: "t", pollMs: 1000 });
+  const setMode = (mode: string) =>
+    fetch(`http://127.0.0.1:${dashboard.port}/api/mode`, {
+      method: "PUT",
+      headers: { "X-Gateway-Token": "t", "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    });
+  try {
+    m.setMode("off");
+    await syncWith({ enforcement_mode: "monitor" });
+    assert.equal(m.getMode(), "monitor");
+    const blocked = await setMode("enforce");
+    assert.equal(blocked.status, 403);
+    assert.deepEqual(await blocked.json(), { error: "Mode is managed by your company." });
+    // The lock never overwrites the developer's own mode.
+    assert.equal(m.getSetting("mode"), "off");
+
+    await syncWith({ enforcement_mode: "developers_choice" });
+    assert.equal(m.getMode(), "off");
+    assert.equal((await setMode("enforce")).status, 200);
+
+    // An older server sends no enforcement_mode: same as developers_choice.
+    await syncWith({});
+    assert.equal(m.getMode(), "enforce");
+    assert.equal((await setMode("off")).status, 200);
+
+    await syncWith({ enforcement_mode: "monitor" });
+    assert.equal(m.getMode(), "monitor");
+    logout();
+    assert.equal(m.getMode(), "off");
+    assert.equal((await setMode("enforce")).status, 200);
+  } finally {
+    await dashboard.close();
+  }
+});
+
 test("a failed login keeps the previous server", async () => {
   const { login } = await import("../src/services/company/session");
   m.setSetting("server_url", "https://old.test");
