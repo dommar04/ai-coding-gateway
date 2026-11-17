@@ -97,7 +97,7 @@ test("a group with a blank title still syncs", async () => {
   assert.equal(groups[0].title, "Company rules");
 });
 
-test("maybeSync does nothing within 5 minutes of the last sync", async () => {
+test("maybeSync does nothing within 10 seconds of the last sync", async () => {
   const calls = stubFetch(() => [200, BUNDLE]);
   await m.maybeSync(integration);
   assert.equal(calls.length, 0);
