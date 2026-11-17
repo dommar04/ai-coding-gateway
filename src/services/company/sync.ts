@@ -13,7 +13,7 @@ import { managed } from "./session";
 // Company rules sync: the server's rule groups replace all local rules. The full replace on every
 // sync also reverts local edits to the SQLite rules.
 
-const INTERVAL_MS = 5 * 60_000;
+const INTERVAL_MS = 10_000;
 
 export interface CompanyConfig {
   sync_approved_activities: boolean;
@@ -81,7 +81,7 @@ export async function syncNow(hooksInstalled: boolean): Promise<{ version: numbe
   });
 }
 
-/** Syncs when logged in and the last attempt is 5+ minutes old. Never throws: a failed sync keeps the last rules. */
+/** Syncs when logged in and the last attempt is 10+ seconds old. Never throws: a failed sync keeps the last rules. */
 export async function maybeSync(integration: Integration): Promise<void> {
   try {
     if (!managed()) return;
