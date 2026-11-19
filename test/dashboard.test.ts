@@ -7,8 +7,8 @@ import { request as httpRequest } from "node:http";
 import { createServer as createNetServer, type AddressInfo } from "node:net";
 
 // Point the gateway at a throwaway database before any gateway module is loaded.
-const dir = mkdtempSync(join(tmpdir(), "apichap-gateway-test-"));
-process.env.APICHAP_GATEWAY_DIR = dir;
+const dir = mkdtempSync(join(tmpdir(), "viewtower-test-"));
+process.env.VIEWTOWER_GATEWAY_DIR = dir;
 
 type ServerModule = typeof import("../src/dashboard/server");
 type StoreModule = typeof import("../src/services/settings") & typeof import("../src/services/tool-security/rules");
@@ -55,7 +55,7 @@ function logUnlisted(command: string, toolUseId: string): number {
 test("serves the page", async () => {
   const res = await fetch(base + "/");
   assert.equal(res.status, 200);
-  assert.match(await res.text(), /apichap AI Coding Gateway/);
+  assert.match(await res.text(), /viewtower AI-Coding Governance Platform/);
 });
 
 test("serves the page's stylesheet and modules with a strict CSP", async () => {
@@ -96,7 +96,7 @@ test("every element the page's scripts look up by id exists in index.html", () =
 });
 
 test("serves brand assets without a token, nothing else", async () => {
-  const logo = await fetch(base + "/assets/apichap-logo.png");
+  const logo = await fetch(base + "/assets/viewtower-logo.png");
   assert.equal(logo.status, 200);
   assert.equal(logo.headers.get("content-type"), "image/png");
   assert.equal((await fetch(base + "/assets/missing.png")).status, 404);
@@ -593,7 +593,7 @@ test("environment settings: the gateway skips token savings, trace files and the
     cwd: project,
     sessionId: "1a2b3c4d-0000-0000-0000-000000000000",
   });
-  const workflow = join(project, ".github", "workflows", "goairside-report.yml");
+  const workflow = join(project, ".github", "workflows", "viewtower-report.yml");
 
   assert.ok(afterToolCall(bash, colored).updatedResponse, "on: the colors are removed");
   store.setFeature("tokenSavings", false);
@@ -601,13 +601,13 @@ test("environment settings: the gateway skips token savings, trace files and the
 
   store.setFeature("traces", false);
   afterToolCall(write(1), { response: {} });
-  assert.equal(existsSync(join(project, ".goairside")), false);
+  assert.equal(existsSync(join(project, ".viewtower")), false);
 
   // Traces on, pipelines off: the first trace file, but no CI report.
   store.setFeature("traces", true);
   store.setFeature("pipelines", false);
   afterToolCall(write(2), { response: {} });
-  assert.equal(readdirSync(join(project, ".goairside", "traces")).length, 1);
+  assert.equal(readdirSync(join(project, ".viewtower", "traces")).length, 1);
   assert.equal(existsSync(workflow), false);
 
   for (const f of ["traces", "pipelines", "tokenSavings"] as const) store.setFeature(f, true);

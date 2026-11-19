@@ -6,13 +6,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // End to end: run the real hook command with JSON on stdin, as Claude Code does.
-const dir = mkdtempSync(join(tmpdir(), "apichap-hooks-"));
+const dir = mkdtempSync(join(tmpdir(), "viewtower-hooks-"));
 const cli = join(__dirname, "..", "src", "main.ts");
 
 function hook(phase: string, input: unknown): Record<string, unknown> {
   const r = spawnSync(process.execPath, ["--import", "tsx", cli, "hook", phase, "--agent", "claude"], {
     input: JSON.stringify(input),
-    env: { ...process.env, APICHAP_GATEWAY_DIR: dir, APICHAP_GATEWAY_MODE: "enforce" },
+    env: { ...process.env, VIEWTOWER_GATEWAY_DIR: dir, VIEWTOWER_GATEWAY_MODE: "enforce" },
     encoding: "utf8",
   });
   assert.equal(r.status, 0, r.stderr);
@@ -51,8 +51,8 @@ test("PostToolUse leaves small, clean results alone", () => {
   assert.deepEqual(out, {});
 });
 
-test("PostToolUse traces what the agent wrote into the project's .goairside folder", () => {
-  const project = mkdtempSync(join(tmpdir(), "apichap-hooks-project-"));
+test("PostToolUse traces what the agent wrote into the project's .viewtower folder", () => {
+  const project = mkdtempSync(join(tmpdir(), "viewtower-hooks-project-"));
   hook("post", {
     ...base,
     cwd: project,
@@ -62,7 +62,7 @@ test("PostToolUse traces what the agent wrote into the project's .goairside fold
     tool_input: { file_path: join(project, "a.ts"), old_string: "let x = 1;", new_string: "let x = 2;" },
     tool_response: {},
   });
-  const traces = join(project, ".goairside", "traces");
+  const traces = join(project, ".viewtower", "traces");
   const [file] = readdirSync(traces);
   assert.match(file, /_s1\.jsonl$/);
   const [session, change] = readFileSync(join(traces, file), "utf8")

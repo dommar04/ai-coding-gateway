@@ -6,7 +6,7 @@ import { lineRanges } from "../helper/lines";
 
 // The report inside GitHub:
 //   - the step summary: Markdown on the run's summary page (always)
-//   - a "goAirside" check on the pull request, with one annotation per file that has AI code, shown in
+//   - a "viewtower" check on the pull request, with one annotation per file that has AI code, shown in
 //     "Files changed" (needs `checks: write` and the token in the workflow; otherwise skipped)
 
 /** Writes the step summary and creates the check, when running in GitHub Actions. */
@@ -30,7 +30,7 @@ export async function writeGitHubOutput(data: ReportData, headSha: string, env: 
     },
     env
   );
-  if (result !== "created") console.log(`goAirside check skipped: ${result}`);
+  if (result !== "created") console.log(`viewtower check skipped: ${result}`);
 }
 
 /** One annotation per file with AI code, on its first AI line. */
@@ -58,7 +58,7 @@ export function stepSummary(data: ReportData): string {
   const models = [...new Set(data.files.flatMap((f) => f.spans.map((s) => s.change.model ?? "unknown model")))];
   const cell = (s: string) => s.replace(/\|/g, "\\|");
   const lines = [
-    `## goAirside AI change report`,
+    `## viewtower AI change report`,
     ``,
     `**${percent(ai, added)}** of the new code was written by AI · ${data.subject}`,
     ``,
@@ -72,6 +72,6 @@ export function stepSummary(data: ReportData): string {
     for (const f of aiFiles) lines.push(`| \`${cell(f.path)}\` | ${percent(f.aiTokens, f.addedTokens)} |`);
     lines.push(``);
   }
-  lines.push(`The full report with the highlighted code is in the **goairside-report** artifact below.`, ``);
+  lines.push(`The full report with the highlighted code is in the **viewtower-report** artifact below.`, ``);
   return lines.join("\n");
 }

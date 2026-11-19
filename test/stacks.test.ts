@@ -9,7 +9,7 @@ import { mavenSpringRun, springLog } from "./fixtures/maven-spring";
 
 // Realistic output from other tech stacks: what must disappear, and what must survive.
 
-const spillDir = mkdtempSync(join(tmpdir(), "apichap-stacks-"));
+const spillDir = mkdtempSync(join(tmpdir(), "viewtower-stacks-"));
 const ctx: OutputContext = { toolName: "Bash", toolInput: {}, field: "stdout", toolUseId: "t", spillDir };
 const run = (id: string, text: string) => OUTPUT_STRATEGIES.find((s) => s.id === id)!.apply(text, ctx);
 const lines = (n: number, f: (i: number) => string) => Array.from({ length: n }, (_, i) => f(i));

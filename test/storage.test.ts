@@ -5,8 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // Point the gateway at a throwaway database before any storage module is loaded.
-const dir = mkdtempSync(join(tmpdir(), "apichap-storage-"));
-process.env.APICHAP_GATEWAY_DIR = dir;
+const dir = mkdtempSync(join(tmpdir(), "viewtower-storage-"));
+process.env.VIEWTOWER_GATEWAY_DIR = dir;
 
 type Db = typeof import("../src/storage/database");
 let db: Db;

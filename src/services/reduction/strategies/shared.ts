@@ -32,6 +32,6 @@ export const isMcp = (t: string) => t.startsWith("mcp__");
 /** Every rewritable text except Read content. */
 export const notRead = (t: string) => t !== "Read";
 
-export const NOTE = "[apichap gateway]";
+export const NOTE = "[viewtower gateway]";
 /** A condensing strategy only acts when it removes at least this many lines (the note it adds costs ~12 tokens). */
 export const MIN_DROPPED = 3;

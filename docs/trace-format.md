@@ -1,13 +1,13 @@
 # Trace format
 
-When tracing is on, the gateway records what an AI agent writes into your project's files. The records are stored in the project itself, in the `.goairside` folder, so they can be committed together with the code they describe.
+When tracing is on, the gateway records what an AI agent writes into your project's files. The records are stored in the project itself, in the `.viewtower` folder, so they can be committed together with the code they describe.
 
 A trace contains **no code and no line numbers**. Written content is stored as a sequence of short hashes, one per word or symbol. That keeps traces small and lets the recorded content still be recognized after the file has been edited elsewhere, moved around, or reformatted.
 
 ## Where traces are stored
 
 ```
-.goairside/
+.viewtower/
   traces/
     2026-10-21T09-15-03Z_a1b2c3d4.jsonl
     2026-10-21T14-02-48Z_9f8e7d6c.jsonl
@@ -24,7 +24,7 @@ Trace files use [JSON Lines](https://jsonlines.org/): UTF-8 text with one JSON o
 Every line has a `kind`. The first line is always the `session` line; each following `change` line describes one write by the agent.
 
 ```jsonl
-{"kind":"session","format":"goairside-trace","v":1,"tokenizer":1,"session":"a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d","agent":"claude","agentVersion":"2.1.0","gateway":"1.0.0","started":"2026-10-21T09:15:03.412Z"}
+{"kind":"session","format":"viewtower-trace","v":1,"tokenizer":1,"session":"a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d","agent":"claude","agentVersion":"2.1.0","gateway":"1.0.0","started":"2026-10-21T09:15:03.412Z"}
 {"kind":"change","t":"2026-10-21T09:15:41.087Z","model":"claude-opus-5-5","tool":"Edit","path":"src/app.ts","seg":["PyqRxAfhB3E=","kQ3mAAx1"]}
 {"kind":"change","t":"2026-10-21T09:16:02.551Z","model":"claude-opus-5-5","tool":"Write","path":"src/utils/date.ts","seg":["Zx81Q0nP7wE2bA=="]}
 ```
@@ -36,7 +36,7 @@ Describes the session the file belongs to.
 | Field          | Required | Description                                                      |
 | -------------- | -------- | ---------------------------------------------------------------- |
 | `kind`         | yes      | Always `"session"`.                                              |
-| `format`       | yes      | Always `"goairside-trace"`.                                      |
+| `format`       | yes      | Always `"viewtower-trace"`.                                      |
 | `v`            | yes      | Version of the file format (see [Versions](#versions)).          |
 | `tokenizer`    | yes      | Version of the tokenizer used for all `seg` values in this file. |
 | `session`      | yes      | The agent's session id.                                          |

@@ -44,9 +44,9 @@ export function setMode(mode: Mode): void {
   setSetting("mode", mode);
 }
 
-/** APICHAP_GATEWAY_MODE overrides the stored mode: the escape hatch if the database itself is broken. */
+/** VIEWTOWER_GATEWAY_MODE overrides the stored mode: the escape hatch if the database itself is broken. */
 export function modeOverride(): Mode | undefined {
-  const value = process.env.APICHAP_GATEWAY_MODE;
+  const value = process.env.VIEWTOWER_GATEWAY_MODE;
   return MODES.includes(value as Mode) ? (value as Mode) : undefined;
 }
 

@@ -9,7 +9,7 @@ export interface Tokens {
 }
 
 export function serverUrl(): string {
-  return (process.env.APICHAP_GATEWAY_SERVER || getSetting("server_url") || "https://coding-gateway.dev.apichap.com").replace(
+  return (process.env.VIEWTOWER_GATEWAY_SERVER || getSetting("server_url") || "https://coding-gateway.p.viewtower.ai").replace(
     /\/+$/,
     ""
   );
@@ -42,7 +42,7 @@ async function parse<T>(res: Response): Promise<T> {
 
 async function refresh(): Promise<string> {
   const refresh_token = getSetting("auth:refresh_token");
-  if (!refresh_token) throw new Error("Not logged in. Run: apichap-gateway login");
+  if (!refresh_token) throw new Error("Not logged in. Run: viewtower login");
   const t = await parse<Tokens>(await send("/client/refresh", { refresh_token }));
   storeTokens(t);
   return t.access_token;

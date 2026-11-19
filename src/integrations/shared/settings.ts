@@ -4,7 +4,7 @@ import { packageFile } from "../../helpers/paths";
 
 // Shared JSON hook installer. Integrations supply their path and matcher syntax.
 
-const PACKAGE_NAME = "apichap-ai-coding-gateway";
+const PACKAGE_NAME = "viewtower";
 
 interface HookHandler {
   type?: string;
@@ -31,9 +31,8 @@ const PHASES = [
 type Phase = (typeof PHASES)[number]["phase"] | "prompt";
 const ALL_PHASES = [...PHASES, { event: "UserPromptSubmit", phase: "prompt" as const }];
 
-// Our own hook cli, including older forms (global bin, npx, running from a source checkout).
 const OUR_COMMAND =
-  /(apichap-ai-coding-gateway(@\S+)?|apichap-gateway|claude-gateway|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
+  /(viewtower(@\S+)?|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
 
 export function packageVersion(): string {
   try {
@@ -50,7 +49,7 @@ export function packageVersion(): string {
  */
 export interface HookCommandOptions {
   integration?: string;
-  /** Use the globally installed `apichap-gateway` command (fastest startup). */
+  /** Use the globally installed `viewtower` command (fastest startup). */
   installed?: boolean;
   /**
    * Run exactly this copy of the gateway, e.g. a local checkout: the path of its start file
@@ -65,7 +64,7 @@ export function hookCommand(phase: Phase, options: HookCommandOptions & { integr
     const entry = options.localEntry.replace(/\\/g, "/");
     return `${entry.endsWith(".ts") ? "npx tsx" : "node"} "${entry}" hook ${phase}${suffix}`;
   }
-  if (options.installed) return `apichap-gateway hook ${phase}${suffix}`;
+  if (options.installed) return `viewtower hook ${phase}${suffix}`;
   return `npx -y --prefer-offline ${PACKAGE_NAME}@${packageVersion()} hook ${phase}${suffix}`;
 }
 

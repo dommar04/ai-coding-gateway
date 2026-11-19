@@ -1,30 +1,32 @@
 {
-  "name": "apichap-ai-coding-gateway",
-  "version": "1.1.0",
-  "description": "apichap AI Coding Gateway: guardrails and a live dashboard for Claude Code. Checks every tool call against allow/deny rules, logs it locally, and collects approval requests.",
+  "name": "viewtower",
+  "version": "0.0.9",
+  "description": "viewtower.ai: The all-in-one AI-Coding Governance Platform",
   "keywords": [
-    "apichap",
+    "viewtower",
     "claude",
     "claude-code",
     "hooks",
     "guardrails",
     "permissions",
     "ai-agents",
-    "dashboard"
+    "dashboard",
+    "ai-coding governance",
+    "governance"
   ],
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dommar04/ai-coding-gateway.git"
+    "url": "git+https://github.com/viewtower/viewtower.git"
   },
-  "homepage": "https://github.com/dommar04/ai-coding-gateway#readme",
+  "homepage": "https://github.com/viewtower/viewtower#readme",
   "bugs": {
-    "url": "https://github.com/dommar04/ai-coding-gateway/issues"
+    "url": "https://github.com/viewtower/viewtower/issues"
   },
   "author": "",
   "main": "dist/main.js",
   "bin": {
-    "apichap-gateway": "dist/main.js"
+    "viewtower": "dist/main.js"
   },
   "files": [
     "dist",

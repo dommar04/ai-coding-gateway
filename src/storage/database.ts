@@ -7,8 +7,8 @@ import { MIGRATIONS } from "./migrations";
 // The SQLite connection. Tables and their queries live in storage/tables/, one file per table;
 // the schema is created and changed only by the numbered migrations in storage/migrations/.
 
-/** APICHAP_GATEWAY_DIR relocates all gateway data (used by tests; handy for trying things out). */
-export const GATEWAY_DIR = process.env.APICHAP_GATEWAY_DIR || join(homedir(), ".ai-coding-gateway");
+/** VIEWTOWER_GATEWAY_DIR relocates all gateway data (used by tests; handy for trying things out). */
+export const GATEWAY_DIR = process.env.VIEWTOWER_GATEWAY_DIR || join(homedir(), ".viewtower");
 // A new file name for the migration-managed schema: databases from development builds (gateway.db)
 // are simply left alone, nothing has to be renamed or converted.
 export const DB_PATH = join(GATEWAY_DIR, "gateway.sqlite");

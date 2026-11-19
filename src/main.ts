@@ -4,7 +4,7 @@ import { packageVersion } from "./integrations/claude/settings";
 import { COMMANDS, USAGE } from "./cli";
 import { fail } from "./cli/helper/args";
 
-// Start file of the apichap-gateway command (package.json "bin"). Claude Code runs it for every
+// Start file of the viewtower command (package.json "bin"). Claude Code runs it for every
 // tool call ("hook pre|post|session"); people run it for setup and administration.
 
 async function main(): Promise<void> {

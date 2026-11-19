@@ -227,7 +227,7 @@ $("#f-project").addEventListener(
   guard(async (e) => {
     state.project = e.target.value;
     try {
-      localStorage.setItem("apichap-gateway-project", state.project);
+      localStorage.setItem("viewtower-project", state.project);
     } catch {}
     await loadActivity();
   })
@@ -362,7 +362,7 @@ document.addEventListener(
 );
 
 // ---------- resizing the details (drag the left edge; the width is remembered) ----------
-const DRAWER_KEY = "apichap-gateway-drawer-width";
+const DRAWER_KEY = "viewtower-gateway-drawer-width";
 const DRAWER_MIN = 360;
 const drawerMax = () => Math.max(DRAWER_MIN, window.innerWidth - 80);
 function setDrawerWidth(px) {

@@ -55,7 +55,7 @@ export async function createCheck(check: Check, env: NodeJS.ProcessEnv = process
 
   try {
     const { id } = await request("POST", "/check-runs", {
-      name: "goAirside",
+      name: "viewtower",
       head_sha: check.headSha,
       status: "completed",
       conclusion: "neutral",
