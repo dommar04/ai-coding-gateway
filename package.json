@@ -17,11 +17,11 @@
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/viewtower/viewtower.git"
+    "url": "git+https://github.com/viewtower/viewtower-client.git"
   },
-  "homepage": "https://github.com/viewtower/viewtower#readme",
+  "homepage": "https://github.com/viewtower/viewtower-client#readme",
   "bugs": {
-    "url": "https://github.com/viewtower/viewtower/issues"
+    "url": "https://github.com/viewtower/viewtower-client/issues"
   },
   "author": "",
   "main": "dist/main.js",
