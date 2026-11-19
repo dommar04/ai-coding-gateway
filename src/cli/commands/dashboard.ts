@@ -32,7 +32,7 @@ export async function runDashboard(args: string[]): Promise<void> {
     if (!flags["no-open"]) openBrowser(`http://127.0.0.1:${port}/?token=${token}`);
     return;
   }
-  console.log(`apichap AI Coding Gateway dashboard running at:
+  console.log(`Your viewtower.ai Developer Dashboard is running at:
 
   ${dashboard.url}
 `);

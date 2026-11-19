@@ -189,7 +189,7 @@ function connect() {
 
 if (!token) {
   $("#banner").innerHTML =
-    '<div class="banner error">Not connected yet. Run <code>npx apichap-ai-coding-gateway dashboard</code> once in your terminal to connect this browser.</div>';
+    '<div class="banner error">Not connected yet. Run <code>npx viewtower dashboard</code> once in your terminal to connect this browser.</div>';
 } else {
   // Stream first, then history: anything arriving in between is merged by id.
   connect();

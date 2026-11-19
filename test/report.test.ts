@@ -17,12 +17,12 @@ import { lineRanges } from "../src/services/report/helper/lines";
 import { CODE_QUALITY_FILE, codeQualityFindings } from "../src/services/report/gitlab/gitlab";
 import { createCheck } from "../src/services/report/github/checks";
 
-const root = mkdtempSync(join(tmpdir(), "apichap-report-"));
+const root = mkdtempSync(join(tmpdir(), "viewtower-report-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 const SESSION_LINE = JSON.stringify({
   kind: "session",
-  format: "goairside-trace",
+  format: "viewtower-trace",
   v: 1,
   tokenizer: 1,
   session: "s1",
@@ -63,8 +63,8 @@ function makeRepo(): string {
   write("b.ts", "new file\n");
   git("rm", "-q", "gone.ts");
   git("mv", "old-name.ts", "new-name.ts");
-  write(".goairside/traces/2026-10-21T09-00-00Z_s1.jsonl", SESSION_LINE + "\n" + changeLine("b.ts", "new file") + "\n");
-  write("pkg/.goairside/traces/2026-10-21T09-00-00Z_s2.jsonl", SESSION_LINE + "\n");
+  write(".viewtower/traces/2026-10-21T09-00-00Z_s1.jsonl", SESSION_LINE + "\n" + changeLine("b.ts", "new file") + "\n");
+  write("pkg/.viewtower/traces/2026-10-21T09-00-00Z_s2.jsonl", SESSION_LINE + "\n");
   git("add", ".");
   git("commit", "-q", "-m", "feature");
   return dir;
@@ -73,8 +73,8 @@ function makeRepo(): string {
 test("git: the range's new trace files, also in subfolders", () => {
   const dir = makeRepo();
   assert.deepEqual(traceFiles({ base: "main", head: "feature", dots: "..." }, dir).sort(), [
-    ".goairside/traces/2026-10-21T09-00-00Z_s1.jsonl",
-    "pkg/.goairside/traces/2026-10-21T09-00-00Z_s2.jsonl",
+    ".viewtower/traces/2026-10-21T09-00-00Z_s1.jsonl",
+    "pkg/.viewtower/traces/2026-10-21T09-00-00Z_s2.jsonl",
   ]);
 });
 
@@ -219,7 +219,7 @@ test("ci: a supported CI run that is neither a merge request nor a push needs --
 
 test("traces: changes with decoded segments; paths relative to the project folder", () => {
   const text = SESSION_LINE + "\n" + changeLine("src/a.ts", "const a = 1;") + "\n";
-  const root = readTrace(".goairside/traces/x.jsonl", text);
+  const root = readTrace(".viewtower/traces/x.jsonl", text);
   assert.deepEqual(root.warnings, []);
   assert.deepEqual(root.changes, [
     {
@@ -232,18 +232,18 @@ test("traces: changes with decoded segments; paths relative to the project folde
       segments: [tokenize("const a = 1;").map(hashToken)],
     },
   ]);
-  assert.equal(readTrace("pkg/web/.goairside/traces/x.jsonl", text).changes[0].path, "pkg/web/src/a.ts");
+  assert.equal(readTrace("pkg/web/.viewtower/traces/x.jsonl", text).changes[0].path, "pkg/web/src/a.ts");
 });
 
 test("traces: unknown lines are skipped, unknown versions and other files with a warning", () => {
   const text = [SESSION_LINE, '{"kind":"rename","from":"a","to":"b"}', "not json", changeLine("a.ts", "x y")].join("\n");
-  assert.equal(readTrace(".goairside/traces/x.jsonl", text).changes.length, 1);
+  assert.equal(readTrace(".viewtower/traces/x.jsonl", text).changes.length, 1);
 
   const v2 = SESSION_LINE.replace('"v":1', '"v":2');
-  const skipped = readTrace(".goairside/traces/x.jsonl", v2 + "\n" + changeLine("a.ts", "x"));
+  const skipped = readTrace(".viewtower/traces/x.jsonl", v2 + "\n" + changeLine("a.ts", "x"));
   assert.deepEqual(skipped.changes, []);
   assert.match(skipped.warnings[0], /format 2 .* not supported/);
-  assert.match(readTrace(".goairside/traces/x.jsonl", '{"hello":1}').warnings[0], /not a goairside trace/);
+  assert.match(readTrace(".viewtower/traces/x.jsonl", '{"hello":1}').warnings[0], /not a viewtower trace/);
 });
 
 // Matching
@@ -398,7 +398,7 @@ test("report: a session that goes on in a trace file main already has counts onl
   git("checkout", "-q", "main");
   git("merge", "-q", "--no-ff", "-m", "merge", "feature");
   git("checkout", "-q", "-b", "next");
-  const trace = join(dir, ".goairside/traces/2026-10-21T09-00-00Z_s1.jsonl");
+  const trace = join(dir, ".viewtower/traces/2026-10-21T09-00-00Z_s1.jsonl");
   writeFileSync(trace, readFileSync(trace, "utf8") + changeLine("c.ts", "hello gitlab") + "\n");
   writeFileSync(join(dir, "c.ts"), "hello gitlab\n");
   git("add", ".");
@@ -516,7 +516,7 @@ test("github: the check goes to GitHub's API only, with more than 50 annotations
   );
   assert.deepEqual(
     [requests[0].body.name, requests[0].body.head_sha, requests[0].body.conclusion],
-    ["goAirside", "abc", "neutral"]
+    ["viewtower", "abc", "neutral"]
   );
 });
 

@@ -33,7 +33,7 @@ import { readTrace, type TracedChange } from "./helper/traces";
 export interface ReportOptions {
   base?: string;
   head?: string;
-  /** Folder for index.html (default: goairside-report, relative to cwd). */
+  /** Folder for index.html (default: viewtower-report, relative to cwd). */
   out?: string;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
@@ -85,7 +85,7 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
     missing: files.reduce((n, f) => n + f.missing, elsewhere),
     warnings,
   };
-  const out = resolve(cwd, options.out ?? "goairside-report");
+  const out = resolve(cwd, options.out ?? "viewtower-report");
   mkdirSync(out, { recursive: true });
   const file = join(out, "index.html");
   writeFileSync(file, renderReport(data));
@@ -100,7 +100,7 @@ export async function runReport(options: ReportOptions = {}): Promise<ReportResu
 export function runCodeQualityReport(options: Pick<ReportOptions, "head" | "out" | "cwd"> = {}): string {
   const cwd = options.cwd ?? process.cwd();
   const root = repoRoot(cwd);
-  const out = resolve(cwd, options.out ?? "goairside-report");
+  const out = resolve(cwd, options.out ?? "viewtower-report");
   mkdirSync(out, { recursive: true });
   return writeCodeQuality(aiCodeAt(options.head ?? "HEAD", root), out);
 }

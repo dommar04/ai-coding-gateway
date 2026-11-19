@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 // Knows nothing about CI systems; ci.ts decides which commits to compare.
 
 // Trace files anywhere in the repository (a project can be a subfolder), and the folders to leave out of the diff.
-const TRACE_FILES = ":(glob)**/.goairside/traces/*.jsonl";
-const TRACE_FOLDERS = ":(glob,exclude)**/.goairside/**";
+const TRACE_FILES = ":(glob)**/.viewtower/traces/*.jsonl";
+const TRACE_FOLDERS = ":(glob,exclude)**/.viewtower/**";
 
 /** The commits to compare: what `head` has that `base` doesn't. */
 export interface Range {

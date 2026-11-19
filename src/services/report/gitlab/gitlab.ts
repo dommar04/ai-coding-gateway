@@ -7,7 +7,7 @@ import { lineRanges } from "../helper/lines";
 
 // The report inside GitLab: a Code Quality report (CodeClimate JSON) that the merge request widget and
 // the "Changes" tab show. The job declares it as an artifact:
-//   artifacts: { reports: { codequality: goairside-report/gl-code-quality.json } }
+//   artifacts: { reports: { codequality: viewtower-report/gl-code-quality.json } }
 // GitLab shows a merge request only the findings that are new compared with its target branch's report,
 // and nothing without one. So every pipeline, merge request or branch, reports every recorded AI change at
 // its commit, and GitLab works out which ones a merge request adds. The fingerprint (how GitLab tells two
@@ -52,7 +52,7 @@ export function codeQualityFindings(files: AiFile[]): CodeQualityFinding[] {
       const id = JSON.stringify([change.session, change.at, change.path, change.tool, change.segments]);
       return {
         description: `AI-generated code: ${where} · ${change.model ?? "unknown model"}`,
-        check_name: "goairside-ai-code",
+        check_name: "viewtower-ai-code",
         fingerprint: createHash("sha256").update(id).digest("hex"),
         severity: "info" as const,
         location: { path: f.path, lines: { begin: lines[0] ?? 1 } },

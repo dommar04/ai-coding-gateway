@@ -36,13 +36,13 @@ export function renderReport(data: ReportData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>goAirside AI change report</title>
+<title>viewtower AI change report</title>
 <style>${CSS}</style>
 </head>
 <body>
 <header class="top">
   <div class="wrap"><div class="narrow top-row">
-    <span class="logo"><span class="mark">//</span> goAirside</span>
+    <span class="logo"><span class="mark">//</span> viewtower</span>
     <span class="label">AI change report</span>
   </div></div>
 </header>

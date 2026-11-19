@@ -8,7 +8,7 @@ import { reduceResult, type ReadCache } from "../src/services/reduction/pipeline
 import { adapterFor } from "../src/services/reduction/adapters";
 import { readTranscript, cleanPromptText } from "../src/integrations/claude/transcript";
 
-const spillDir = mkdtempSync(join(tmpdir(), "apichap-spill-"));
+const spillDir = mkdtempSync(join(tmpdir(), "viewtower-spill-"));
 const strategy = (id: string) => OUTPUT_STRATEGIES.find((s) => s.id === id)!;
 const ctx = (over: Partial<OutputContext> = {}): OutputContext => ({
   toolName: "Bash",
@@ -101,7 +101,7 @@ test("lockfile diffs are summarized, source diffs kept", () => {
 
 test("very long lines are shortened", () => {
   const r = run("long-lines", `short\n${"x".repeat(5000)}`);
-  assert.match(r, /^short\nx{300} ⋯ \[apichap gateway\] line shortened, 5,000 chars$/);
+  assert.match(r, /^short\nx{300} ⋯ \[viewtower gateway\] line shortened, 5,000 chars$/);
 });
 
 test("paging keeps head and tail and spills the full output", () => {
@@ -227,7 +227,7 @@ test("visible tokens reflect what Claude sees", () => {
 });
 
 test("transcript: prompt text and deduplicated API usage per prompt", () => {
-  const dir = mkdtempSync(join(tmpdir(), "apichap-transcript-"));
+  const dir = mkdtempSync(join(tmpdir(), "viewtower-transcript-"));
   const path = join(dir, "session.jsonl");
   const usage = { input_tokens: 10, cache_read_input_tokens: 1000, cache_creation_input_tokens: 50, output_tokens: 20 };
   const lines = [

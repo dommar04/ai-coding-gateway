@@ -126,17 +126,25 @@ test("gateway protection matches running the gateway, not mentioning it", () => 
   const otherCli = bash("node cli.js rules --list");
   assert.ok(!(otherCli.decision === "deny" && otherCli.reason === "rule"));
   // Paths and text that only mention the name are fine.
-  assert.equal(bash("cat C:/dev/apichap-ai-coding-gateway/src/a.ts").decision, "allow");
-  assert.equal(bash("echo 'run apichap-gateway dashboard to open it'").decision, "allow");
-  const readme = ["cat > README.md <<'EOF'", "Run `npx apichap-ai-coding-gateway init`, never --no-verify.", "EOF"].join("\n");
+  assert.equal(bash("cat C:/dev/viewtower-ai-coding-gateway/src/a.ts").decision, "allow");
+  assert.equal(bash("echo 'run viewtower dashboard to open it'").decision, "allow");
+  const readme = ["cat > README.md <<'EOF'", "Run `npx viewtower init`, never --no-verify.", "EOF"].join("\n");
   assert.equal(bash(readme).decision, "allow");
+  // The new name only as a folder (e.g. this repo's checkout) is fine too.
+  const folder = bash("npx tsc -p C:/dev/viewtower/tsconfig.json");
+  assert.ok(!(folder.decision === "deny" && folder.reason === "rule"));
   // Running it is blocked.
   for (const cmd of [
-    "apichap-gateway uninstall --agent claude",
-    "npx -y apichap-ai-coding-gateway uninstall",
-    "cd x && node C:/npm/node_modules/apichap-ai-coding-gateway/dist/cli.js dashboard",
-    "node C:\\npm\\node_modules\\apichap-ai-coding-gateway\\dist\\main.js uninstall",
-    "cat ~/.ai-coding-gateway/gateway.sqlite",
+    "viewtower uninstall --agent claude",
+    "npx viewtower uninstall",
+    "npx -y --prefer-offline viewtower@1.1.0 init",
+    "pnpm dlx viewtower init",
+    "node C:\\npm\\node_modules\\viewtower\\dist\\main.js uninstall",
+    "viewtower uninstall --agent claude",
+    "npx -y viewtower uninstall",
+    "cd x && node C:/npm/node_modules/viewtower/dist/cli.js dashboard",
+    "node C:\\npm\\node_modules\\viewtower\\dist\\main.js uninstall",
+    "cat ~/.viewtower/gateway.sqlite",
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
@@ -208,13 +216,13 @@ test("file tools: project files allowed, secrets and outside paths not", () => {
 
 test("the agent cannot manage the gateway itself", () => {
   for (const cmd of [
-    "apichap-gateway uninstall --agent codex",
-    "apichap-gateway init --agent claude --local",
-    "apichap-gateway hook pre --agent claude",
-    "apichap-gateway dashboard --no-open",
-    "npx apichap-ai-coding-gateway dashboard --port 5000",
-    "npx apichap-ai-coding-gateway uninstall",
-    "pnpm dlx apichap-ai-coding-gateway init",
+    "viewtower uninstall --agent codex",
+    "viewtower init --agent claude --local",
+    "viewtower hook pre --agent claude",
+    "viewtower dashboard --no-open",
+    "npx viewtower dashboard --port 5000",
+    "npx viewtower uninstall",
+    "pnpm dlx viewtower init",
   ]) {
     const v = bash(cmd);
     assert.ok(v.decision === "deny" && v.reason === "rule", cmd);
@@ -223,14 +231,14 @@ test("the agent cannot manage the gateway itself", () => {
 
 test("the agent cannot change the project's trace", () => {
   const sep = process.platform === "win32" ? "\\" : "/";
-  const trace = [CWD, ".goairside", "traces", "2026-10-21T09-15-03Z_a1b2c3d4.jsonl"].join(sep);
+  const trace = [CWD, ".viewtower", "traces", "2026-10-21T09-15-03Z_a1b2c3d4.jsonl"].join(sep);
   for (const [tool, input] of [
     ["Write", { file_path: trace, content: "{}" }],
     ["Edit", { file_path: trace, old_string: "a", new_string: "b" }],
     ["Bash", { command: `echo '{}' >> ${trace}` }],
-    ["Bash", { command: "cat .goairside/traces/x.jsonl" }],
-    ["Bash", { command: "sed -i 's/a/b/' .goairside/traces/x.jsonl" }],
-    ["PowerShell", { command: "Set-Content .goairside\\traces\\x.jsonl '{}'" }],
+    ["Bash", { command: "cat .viewtower/traces/x.jsonl" }],
+    ["Bash", { command: "sed -i 's/a/b/' .viewtower/traces/x.jsonl" }],
+    ["PowerShell", { command: "Set-Content .viewtower\\traces\\x.jsonl '{}'" }],
   ] as const) {
     const v = run(tool, input);
     assert.ok(v.decision === "deny" && v.reason === "rule", `${tool} ${JSON.stringify(input)}`);

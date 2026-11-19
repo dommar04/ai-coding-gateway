@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "apichap AI Coding Gateway rule file",
+  "name": "viewtower.ai AI-Coding Governance default rules",
   "description": "Rule groups for Claude Code tool calls. Each group is one policy in plain words (\"The agent is not allowed to delete files\") with the allow and deny rules that implement it. A matching deny rule always wins; calls no allow rule covers are denied too.",
   "type": "object",
   "properties": {

@@ -3,7 +3,7 @@ import { isAbsolute, join, relative } from "node:path";
 import { packageVersion } from "../../../integrations/shared/settings";
 import { setUpPipelines } from "../../pipeline/pipelines";
 
-// One trace file per agent session in <project>/.goairside/traces (format: docs/trace-format.md).
+// One trace file per agent session in <project>/.viewtower/traces (format: docs/trace-format.md).
 // Every hook call is its own process, so the file is found again by the session id in its name.
 // The project's first trace also adds the AI change report to the repository's CI (pipeline/pipelines.ts).
 
@@ -35,7 +35,7 @@ export class TraceFile {
     /** pipelines: the project's first trace also adds the report to the repository's CI. */
     private readonly options: { pipelines?: boolean } = {}
   ) {
-    this.dir = join(projectRoot, ".goairside", "traces");
+    this.dir = join(projectRoot, ".viewtower", "traces");
   }
 
   /** Appends a change line, creating the file with its session line first. False when nothing was written. */
@@ -77,14 +77,14 @@ export class TraceFile {
   }
 
   private create(at: Date): string {
-    const firstTrace = !existsSync(join(this.projectRoot, ".goairside"));
+    const firstTrace = !existsSync(join(this.projectRoot, ".viewtower"));
     mkdirSync(this.dir, { recursive: true });
     if (firstTrace && this.options.pipelines !== false) setUpPipelines(this.projectRoot);
     const stamp = at.toISOString().slice(0, 19).replace(/:/g, "-") + "Z";
     const file = join(this.dir, `${stamp}_${this.session.id.slice(0, 8)}.jsonl`);
     const header = {
       kind: "session",
-      format: "goairside-trace",
+      format: "viewtower-trace",
       v: TRACE_FORMAT_VERSION,
       tokenizer: TOKENIZER_VERSION,
       session: this.session.id,

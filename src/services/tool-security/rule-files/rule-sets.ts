@@ -214,7 +214,7 @@ export function exportRules(): RuleFile & { exportedAt: string } {
     });
   }
   return {
-    name: "apichap AI Coding Gateway rules",
+    name: "viewtower AI-Coding Governance Rules",
     version: 1,
     exportedAt: new Date().toISOString(),
     groups: out,

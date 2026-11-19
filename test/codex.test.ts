@@ -26,7 +26,7 @@ function hook(phase: string, input: unknown, mode = "enforce") {
     {
       input: JSON.stringify(input),
       encoding: "utf8",
-      env: { ...process.env, APICHAP_GATEWAY_DIR: dir, APICHAP_GATEWAY_MODE: mode },
+      env: { ...process.env, VIEWTOWER_GATEWAY_DIR: dir, VIEWTOWER_GATEWAY_MODE: mode },
     }
   );
   assert.equal(r.status, 0, r.stderr);

@@ -1,6 +1,6 @@
 {
   "$schema": "./rule-file.schema.json",
-  "name": "apichap AI Coding Gateway default rules (sandbox-required proposal)",
+  "name": "viewtower.ai AI-Coding Governance default rules",
   "version": 16,
   "description": "Feature-organized developer rules for Claude Code and Codex. DENY before ALLOW; no match means deny; general is universal. V16 restores the 8 legacy shell conveniences and adds best-effort direct-command secret denies. NOT a complete security boundary: it MUST NOT be shipped as a security guarantee until OS/runtime-enforced filesystem, network, environment and subprocess isolation is required and verified. Skills, MCP, hooks and file tools also need separate controls.",
   "groups": [
@@ -264,16 +264,16 @@
       "title": "Protect gateway, agent hooks and configuration",
       "description": "Prevent tool access that changes the gateway, hooks, permission policies, or agent execution configuration.",
       "deny": [
-        { "rule": "Shell(apichap-gateway *)", "note": "the gateway's CLI", "techStacks": ["general"] },
-        { "rule": "Shell(npx *apichap-ai-coding-gateway*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
-        { "rule": "Shell(pnpm dlx *apichap-ai-coding-gateway*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
-        { "rule": "Shell(yarn dlx *apichap-ai-coding-gateway*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
-        { "rule": "Shell(bunx *apichap-ai-coding-gateway*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
-        { "rule": "Shell(node *apichap-ai-coding-gateway*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
-        { "rule": "Shell(*/.ai-coding-gateway*)", "note": "the gateway's data", "techStacks": ["general"] },
-        { "rule": "Shell(*\\.ai-coding-gateway*)", "note": "the gateway's data", "techStacks": ["general"] },
-        { "rule": "Shell(*~/.ai-coding-gateway*)", "note": "the gateway's data", "techStacks": ["general"] },
-        { "rule": "FileEdit({home}/.ai-coding-gateway/**)", "note": "the gateway's data", "techStacks": ["general"] },
+        { "rule": "Shell(viewtower *)", "note": "the gateway's CLI", "techStacks": ["general"] },
+        { "rule": "Shell(npx* viewtower*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
+        { "rule": "Shell(pnpm dlx* viewtower*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
+        { "rule": "Shell(yarn dlx* viewtower*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
+        { "rule": "Shell(bunx* viewtower*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
+        { "rule": "Shell(node *node_modules?viewtower?*)", "note": "the gateway's CLI", "techStacks": ["npm"] },
+        { "rule": "Shell(*/.viewtower*)", "note": "the gateway's data", "techStacks": ["general"] },
+        { "rule": "Shell(*\\.viewtower*)", "note": "the gateway's data", "techStacks": ["general"] },
+        { "rule": "Shell(*~/.viewtower*)", "note": "the gateway's data", "techStacks": ["general"] },
+        { "rule": "FileEdit({home}/.viewtower/**)", "note": "the gateway's data", "techStacks": ["general"] },
         { "rule": "FileEdit(**/.claude/settings*.json)", "note": "Claude Code settings (hooks)", "techStacks": ["general"] },
         { "rule": "FileEdit(**/.codex/hooks.json)", "note": "Codex lifecycle hooks", "techStacks": ["general"] },
         { "rule": "FileEdit(**/.codex/config.toml)", "note": "Codex settings and inline hooks", "techStacks": ["general"] },
@@ -296,8 +296,8 @@
         { "rule": "Shell(*--yolo*)", "note": "Common bypass or broad autonomy switches; additional runtime enforcement is necessary.", "techStacks": ["general"] },
         { "rule": "Shell(*--full-auto*)", "note": "Common bypass or broad autonomy switches; additional runtime enforcement is necessary.", "techStacks": ["general"] },
         { "rule": "Shell(*--disable-sandbox*)", "note": "Common bypass or broad autonomy switches; additional runtime enforcement is necessary.", "techStacks": ["general"] },
-        { "rule": "FileEdit(**/.goairside/**)", "note": "the project's trace of what the agent wrote", "techStacks": ["general"] },
-        { "rule": "Shell(*.goairside*)", "note": "the project's trace of what the agent wrote", "techStacks": ["general"] }
+        { "rule": "FileEdit(**/.viewtower/**)", "note": "the project's trace of what the agent wrote", "techStacks": ["general"] },
+        { "rule": "Shell(*.viewtower*)", "note": "the project's trace of what the agent wrote", "techStacks": ["general"] }
       ]
     },
     {
@@ -308,7 +308,7 @@
         { "rule": "FileRead({cwd}/**)", "note": "the current project", "techStacks": ["general"] },
         { "rule": "FileRead({tmp}/claude/**)", "note": "Claude Code's scratchpad folder", "techStacks": ["general"] },
         { "rule": "FileRead({home}/.claude/**)", "note": "Claude Code's home folder", "techStacks": ["general"] },
-        { "rule": "FileRead({home}/.ai-coding-gateway/spill/**)", "note": "full output of calls the gateway shortened", "techStacks": ["general"] }
+        { "rule": "FileRead({home}/.viewtower/spill/**)", "note": "full output of calls the gateway shortened", "techStacks": ["general"] }
       ]
     },
     {
