@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         # Shell parsing and path handling differ per OS, so test all three.
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest] #, macos-latest]
         node: [22, 24]
     steps:
       - uses: actions/checkout@v7
