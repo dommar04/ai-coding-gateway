@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://viewtower.ai"><img src="./src/dashboard/public/assets/viewtower-logo-white.png" alt="viewtower.ai" width="200"></a>
+  <a href="https://viewtower.ai"><img src="./src/dashboard/public/assets/viewtower-logo.png" alt="viewtower.ai" width="200"></a>
 </p>
 
 <h3 align="center">The all-in-one AI-Coding Governance Platform.</h3>
