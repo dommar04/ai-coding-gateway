@@ -4,12 +4,12 @@ import { logError } from "../../helpers/errors";
 import { packageFile } from "../../helpers/paths";
 import { packageVersion } from "../../integrations/shared/settings";
 
-// Sets up the AI change report in the repository's CI, once: when a project gets its .goairside folder.
+// Sets up the AI change report in the repository's CI, once: when a project gets its .viewtower folder.
 // Only for the CI systems the repository already uses (their pipeline files exist), and never over a file
 // that is already there, so whatever the user changes later stays. Templates: pipeline/ in this package.
 // To support another CI, add it to CI_SETUPS.
 
-const GITLAB_JOB = ".gitlab/goairside-report.yml";
+const GITLAB_JOB = ".gitlab/viewtower-report.yml";
 
 interface CiSetup {
   name: string;
@@ -22,7 +22,7 @@ const CI_SETUPS: CiSetup[] = [
   {
     name: "GitHub Actions",
     uses: (repo) => existsSync(join(repo, ".github", "workflows")),
-    setUp: (repo) => writeTemplate("github-pipeline-template.yml", join(repo, ".github", "workflows", "goairside-report.yml")),
+    setUp: (repo) => writeTemplate("github-pipeline-template.yml", join(repo, ".github", "workflows", "viewtower-report.yml")),
   },
   {
     name: "GitLab CI",
@@ -68,10 +68,7 @@ function repoRoot(dir: string): string | null {
 function writeTemplate(template: string, target: string, edit = (text: string) => text): void {
   if (existsSync(target)) return;
   const text = edit(
-    readFileSync(packageFile("pipeline", template), "utf8").replace(
-      "apichap-ai-coding-gateway@latest",
-      `apichap-ai-coding-gateway@${packageVersion()}`
-    )
+    readFileSync(packageFile("pipeline", template), "utf8").replace("viewtower@latest", `viewtower@${packageVersion()}`)
   );
   mkdirSync(dirname(target), { recursive: true });
   // "wx": a parallel hook call may have written it first.

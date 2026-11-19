@@ -445,7 +445,7 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       const date = new Date().toISOString().slice(0, 10);
       res.writeHead(200, {
         "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="apichap-gateway-rules-${date}.json"`,
+        "Content-Disposition": `attachment; filename="viewtower-rules-${date}.json"`,
         "Cache-Control": "no-store",
       });
       res.end(formatRuleFile(exportRules()));

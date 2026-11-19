@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { hookCommand, hooksInstalled, installHooks, packageVersion, uninstallHooks } from "../src/integrations/claude/settings";
 
 const tempSettings = (content?: unknown) => {
-  const path = join(mkdtempSync(join(tmpdir(), "apichap-install-")), "settings.json");
+  const path = join(mkdtempSync(join(tmpdir(), "viewtower-install-")), "settings.json");
   if (content !== undefined) writeFileSync(path, typeof content === "string" ? content : JSON.stringify(content, null, 2));
   return path;
 };
@@ -15,9 +15,9 @@ const read = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 test("hook command is a pinned, offline-first npx call", () => {
   assert.equal(
     hookCommand("pre", { integration: "claude" }),
-    `npx -y --prefer-offline apichap-ai-coding-gateway@${packageVersion()} hook pre --agent claude`
+    `npx -y --prefer-offline viewtower@${packageVersion()} hook pre --agent claude`
   );
-  assert.equal(hookCommand("post", { integration: "claude", installed: true }), "apichap-gateway hook post --agent claude");
+  assert.equal(hookCommand("post", { integration: "claude", installed: true }), "viewtower hook post --agent claude");
 });
 
 test("--local hooks run exactly the given copy: source with tsx, build with node", () => {
@@ -60,7 +60,7 @@ test("init keeps other settings and hooks, replaces older gateway hooks, and bac
         { matcher: "*", hooks: [{ type: "command", command: "npx tsx C:/dev/tokenreductiongateway/src/cli.ts hook pre" }] },
         { matcher: "Bash", hooks: [{ type: "command", command: "my-linter" }] },
       ],
-      PostToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "claude-gateway hook post" }] }],
+      PostToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "viewtower hook post" }] }],
       Stop: [{ hooks: [{ type: "command", command: "notify" }] }],
     },
   });

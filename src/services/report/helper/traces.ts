@@ -24,15 +24,15 @@ export interface TraceRead {
 }
 
 /**
- * The changes in one trace file. `file` is its path in the repository (…/.goairside/traces/x.jsonl):
- * paths inside the trace are relative to the folder holding .goairside.
+ * The changes in one trace file. `file` is its path in the repository (…/.viewtower/traces/x.jsonl):
+ * paths inside the trace are relative to the folder holding .viewtower.
  */
 export function readTrace(file: string, text: string): TraceRead {
   const project = posix.dirname(posix.dirname(posix.dirname(file)));
   const lines = text.split("\n").filter((l) => l.trim());
   const session = parse(lines[0]);
-  if (session?.kind !== "session" || session.format !== "goairside-trace") {
-    return { changes: [], warnings: [`${file}: not a goairside trace file, skipped.`] };
+  if (session?.kind !== "session" || session.format !== "viewtower-trace") {
+    return { changes: [], warnings: [`${file}: not a viewtower trace file, skipped.`] };
   }
   if (session.v !== TRACE_FORMAT_VERSION || session.tokenizer !== TOKENIZER_VERSION) {
     return {

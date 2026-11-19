@@ -7,7 +7,7 @@ import { TraceFile } from "../src/services/trace/helper/trace-file";
 import { addGitLabInclude, gitLabStage } from "../src/services/pipeline/pipelines";
 import { packageVersion } from "../src/integrations/shared/settings";
 
-const root = mkdtempSync(join(tmpdir(), "apichap-pipeline-"));
+const root = mkdtempSync(join(tmpdir(), "viewtower-pipeline-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 const SESSION = { id: "1a2b3c4d-0000-0000-0000-000000000000", agent: "claude" };
@@ -28,21 +28,21 @@ test("pipeline: the first trace adds the report to every CI the repository uses,
   const dir = repo({ ".github/workflows/ci.yml": "name: ci\n", ".gitlab-ci.yml": "test:\n  script: [npm test]\n" });
   // The project can be a subfolder: the pipeline files are at the repository's root.
   trace(join(dir, "app"));
-  const workflow = readFileSync(join(dir, ".github/workflows/goairside-report.yml"), "utf8");
-  assert.match(workflow, new RegExp(`npx -y apichap-ai-coding-gateway@${packageVersion().replace(/\./g, "\\.")} report`));
-  assert.match(readFileSync(join(dir, ".gitlab/goairside-report.yml"), "utf8"), /^goairside-report:/m);
+  const workflow = readFileSync(join(dir, ".github/workflows/viewtower-report.yml"), "utf8");
+  assert.match(workflow, new RegExp(`npx -y viewtower@${packageVersion().replace(/\./g, "\\.")} report`));
+  assert.match(readFileSync(join(dir, ".gitlab/viewtower-report.yml"), "utf8"), /^viewtower-report:/m);
   assert.equal(
     readFileSync(join(dir, ".gitlab-ci.yml"), "utf8"),
-    "test:\n  script: [npm test]\n\ninclude:\n  - local: .gitlab/goairside-report.yml\n"
+    "test:\n  script: [npm test]\n\ninclude:\n  - local: .gitlab/viewtower-report.yml\n"
   );
 });
 
 test("pipeline: only once, and never over the user's files", () => {
-  const dir = repo({ ".github/workflows/goairside-report.yml": "mine\n" });
+  const dir = repo({ ".github/workflows/viewtower-report.yml": "mine\n" });
   trace(dir);
-  assert.equal(readFileSync(join(dir, ".github/workflows/goairside-report.yml"), "utf8"), "mine\n");
+  assert.equal(readFileSync(join(dir, ".github/workflows/viewtower-report.yml"), "utf8"), "mine\n");
 
-  // .goairside exists: later traces leave the pipelines alone, even ones the user removed.
+  // .viewtower exists: later traces leave the pipelines alone, even ones the user removed.
   rmSync(join(dir, ".github"), { recursive: true });
   mkdirSync(join(dir, ".github/workflows"), { recursive: true });
   new TraceFile(dir, { ...SESSION, id: "9f8e7d6c-0000-0000-0000-000000000000" }).addChange({
@@ -50,7 +50,7 @@ test("pipeline: only once, and never over the user's files", () => {
     path: "a.ts",
     seg: ["AAE="],
   });
-  assert.equal(existsSync(join(dir, ".github/workflows/goairside-report.yml")), false);
+  assert.equal(existsSync(join(dir, ".github/workflows/viewtower-report.yml")), false);
 });
 
 test("pipeline: nothing without CI files, and nothing outside a repository", () => {
@@ -78,10 +78,10 @@ test("pipeline: the GitLab job gets a stage the project has", () => {
 
   const dir = repo({ ".gitlab-ci.yml": "stages:\r\n  - build\r\n  - deploy\r\n" });
   trace(dir);
-  assert.match(readFileSync(join(dir, ".gitlab/goairside-report.yml"), "utf8"), /^  stage: build$/m);
+  assert.match(readFileSync(join(dir, ".gitlab/viewtower-report.yml"), "utf8"), /^  stage: build$/m);
   assert.equal(
     readFileSync(join(dir, ".gitlab-ci.yml"), "utf8"),
-    "stages:\r\n  - build\r\n  - deploy\r\n\r\ninclude:\r\n  - local: .gitlab/goairside-report.yml\r\n"
+    "stages:\r\n  - build\r\n  - deploy\r\n\r\ninclude:\r\n  - local: .gitlab/viewtower-report.yml\r\n"
   );
 });
 
@@ -95,11 +95,11 @@ test("pipeline: the GitLab include joins an existing include list, once; other f
   };
   assert.equal(
     ci("include:\n  # shared\n  - project: org/ci\n    file: base.yml\nbuild:\n  script: [make]\n"),
-    "include:\n  - local: .gitlab/goairside-report.yml\n  # shared\n  - project: org/ci\n    file: base.yml\nbuild:\n  script: [make]\n"
+    "include:\n  - local: .gitlab/viewtower-report.yml\n  # shared\n  - project: org/ci\n    file: base.yml\nbuild:\n  script: [make]\n"
   );
   assert.equal(
     ci("include:\r\n  - local: base.yml\r\n"),
-    "include:\r\n  - local: .gitlab/goairside-report.yml\r\n  - local: base.yml\r\n"
+    "include:\r\n  - local: .gitlab/viewtower-report.yml\r\n  - local: base.yml\r\n"
   );
   assert.equal(ci("include: base.yml\n"), "include: base.yml\n");
   assert.equal(ci("include:\n  local: base.yml\n"), "include:\n  local: base.yml\n");

@@ -19,7 +19,7 @@ export async function runInit(args: string[]): Promise<void> {
   const result = integration.installHooks({ path, installed: flags.installed === true, localEntry });
   getDb(); // create the database with the starter rules right away
   console.log(
-    `✔ apichap AI Coding Gateway hooks registered in ${integration.name}${localEntry ? ` (local copy: ${localEntry})` : ""}`
+    `✔ viewtower AI-Coding Governance hooks registered in ${integration.name}${localEntry ? ` (local copy: ${localEntry})` : ""}`
   );
   console.log(`  settings: ${result.path}${result.backup ? ` (backup: ${result.backup})` : ""}`);
   if (result.replaced) console.log(`  replaced ${result.replaced} earlier gateway hook(s)`);
@@ -28,7 +28,7 @@ export async function runInit(args: string[]): Promise<void> {
   if (integration.setupNotes) console.log(integration.setupNotes);
   console.log(`Dashboard: ${DASHBOARD_URL} (runs in the background; opens in your browser${flags.login ? " after login" : ""})`);
   if (!flags.login) {
-    console.log("Log in to sync your company rules:  npx apichap-ai-coding-gateway login");
+    console.log("Log in to sync your company rules:  npx viewtower login");
     await ensureDashboard(true);
     return;
   }

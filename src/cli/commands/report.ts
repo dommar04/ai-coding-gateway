@@ -11,7 +11,7 @@ export async function runReport(args: string[]): Promise<void> {
   const { gitLabBranchPipeline } = await import("../../services/report/gitlab/gitlab");
   if (gitLabBranchPipeline()) {
     // No merge request to report on: only the AI code at this commit, for merge requests into this branch.
-    console.log(`goAirside Code Quality report: ${runCodeQualityReport({ head: text("head"), out: text("out") })}`);
+    console.log(`viewtower Code Quality report: ${runCodeQualityReport({ head: text("head"), out: text("out") })}`);
     return;
   }
   const { file, data } = await report({ base: text("base"), head: text("head"), out: text("out") });
@@ -20,7 +20,7 @@ export async function runReport(args: string[]): Promise<void> {
   const added = data.files.reduce((n, f) => n + f.addedTokens, 0);
   const ai = data.files.reduce((n, f) => n + f.aiTokens, 0);
   const share = added ? Math.round((ai / added) * 100) : 0;
-  console.log(`goAirside report for ${data.subject}
+  console.log(`viewtower report for ${data.subject}
   AI share:       ${share}% (${ai} of ${added} new tokens)
   Files with AI:  ${data.files.filter((f) => f.aiTokens).length} of ${data.files.length}
   Sessions:       ${data.sessions}

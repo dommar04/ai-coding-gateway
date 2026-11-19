@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 // Point the gateway at a throwaway database before any gateway module is loaded.
-const dir = mkdtempSync(join(tmpdir(), "apichap-gateway-test-"));
-process.env.APICHAP_GATEWAY_DIR = dir;
-process.env.APICHAP_GATEWAY_SERVER = "https://company.test/";
+const dir = mkdtempSync(join(tmpdir(), "viewtower-test-"));
+process.env.VIEWTOWER_GATEWAY_DIR = dir;
+process.env.VIEWTOWER_GATEWAY_SERVER = "https://company.test/";
 
 type Modules = typeof import("../src/services/company/api") &
   typeof import("../src/services/company/sync") &

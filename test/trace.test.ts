@@ -13,7 +13,7 @@ import { latestModel } from "../src/integrations/claude/transcript";
 import { toToolCall as claudeToolCall } from "../src/integrations/claude/hook-input";
 import { toToolCall as codexToolCall } from "../src/integrations/codex/hook-input";
 
-const root = mkdtempSync(join(tmpdir(), "apichap-trace-"));
+const root = mkdtempSync(join(tmpdir(), "viewtower-trace-"));
 after(() => rmSync(root, { recursive: true, force: true }));
 
 const SESSION = { id: "a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d", agent: "claude", agentVersion: "2.1.0" };
@@ -39,7 +39,7 @@ test("the first change creates the session file with its session line", () => {
     { ...session, gateway: undefined },
     {
       kind: "session",
-      format: "goairside-trace",
+      format: "viewtower-trace",
       v: 1,
       tokenizer: 1,
       session: SESSION.id,
@@ -83,7 +83,7 @@ test("each session gets its own file", () => {
     path: "a.ts",
     seg: ["AAE="],
   });
-  assert.equal(readdirSync(join(project, ".goairside", "traces")).length, 2);
+  assert.equal(readdirSync(join(project, ".viewtower", "traces")).length, 2);
 });
 
 test("nothing is written for files outside the project or changes without segments", () => {

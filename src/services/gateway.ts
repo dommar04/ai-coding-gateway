@@ -15,7 +15,7 @@ import { traceToolCall } from "./trace/handler";
 //                        2. log the call
 //   after a tool call:   1. result reduction (feature tokenSavings) → may shrink the result
 //                        2. log result and token figures
-//                        3. trace what the agent wrote into the project (.goairside/traces; feature traces,
+//                        3. trace what the agent wrote into the project (.viewtower/traces; feature traces,
 //                           and feature pipelines for the CI report setup on a project's first trace)
 //   context reset:       forget what the agent had already read
 //

@@ -346,7 +346,7 @@ $("#rules-export").addEventListener(
   guard(async () => {
     const res = await fetch("/api/rules/export", { headers: { "X-Gateway-Token": token } });
     if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
-    const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1] || "apichap-gateway-rules.json";
+    const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1] || "viewtower-rules.json";
     const url = URL.createObjectURL(await res.blob());
     const a = Object.assign(document.createElement("a"), { href: url, download: name });
     document.body.append(a);

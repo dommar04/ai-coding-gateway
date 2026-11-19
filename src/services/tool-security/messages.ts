@@ -22,7 +22,7 @@ export function denyMessage(toolName: string, verdict: Verdict): string {
     const note = verdict.rule.note ? ` (${verdict.rule.note})` : "";
     const policy = verdict.rule.group_title ? `Policy: ${verdict.rule.group_title}.` : "";
     return [
-      `⛔ Denied by the apichap AI Coding Gateway: ${describeCall(toolName, verdict)}`,
+      `⛔ Denied by the viewtower: ${describeCall(toolName, verdict)}`,
       ...(policy ? [policy] : []),
       `It matches deny rule #${verdict.rule.id} \`${verdict.rule.rule}\`${note}.`,
       "",
@@ -34,13 +34,12 @@ export function denyMessage(toolName: string, verdict: Verdict): string {
     verdict.subject?.kind === "command" && verdict.uncovered.length > 0
       ? `No allow rule covers: ${verdict.uncovered.map((p) => `\`${p}\``).join(", ")}.`
       : "No allow rule covers this tool call.";
-  return [`⛔ Denied by the apichap AI Coding Gateway: ${describeCall(toolName, verdict)}`, parts, "", NEXT_STEPS].join("\n");
+  return [`⛔ Denied by the viewtower: ${describeCall(toolName, verdict)}`, parts, "", NEXT_STEPS].join("\n");
 }
 
 export function gatewayErrorMessage(): string {
   return [
-    "⛔ Denied by the apichap AI Coding Gateway: the gateway could not check this call (internal error), so it was blocked for safety.",
-    "Tell the user the apichap AI Coding Gateway is failing (details are in ~/.ai-coding-gateway/errors.log).",
+    "⛔ Denied by the viewtower: the gateway could not check this call (internal error), so it was blocked for safety.",
     "Do not try to achieve the same effect another way.",
   ].join("\n");
 }
