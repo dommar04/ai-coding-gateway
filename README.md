@@ -5,7 +5,7 @@
 <h3 align="center">The all-in-one AI-Coding Governance Platform.</h3>
 
 <p align="center">
-  The open-source client of <a href="https://viewtower.ai"><b>viewtower.ai</b></a>, the AI coding governance platform.
+  The open-source client of <a href="https://viewtower.ai" target="_blank" rel="noopener noreferrer"><b>viewtower.ai</b></a>, the AI coding governance platform.
 </p>
 
 <p align="center">
@@ -19,14 +19,14 @@
 <p align="center">
   <a href="#install-in-30-seconds"><b>Install</b></a> ·
   <a href="#documentation"><b>Docs</b></a> ·
-  <a href="https://viewtower.ai"><b>viewtower.ai</b></a>
+  <a href="https://viewtower.ai" target="_blank" rel="noopener noreferrer"><b>viewtower.ai</b></a>
 </p>
 
 ---
 
-Your AI-Coding agent codes hundreds of lines a day on your machine. Do you know?
+Your AI-Coding Agent codes hundreds of lines a day on your machine. Do you know HOW?
 
-**viewtower is an AI-Coding Governance Platform between your coding agent and your machine.** You see every tool call before it runs, and you stop the ones you don't want. You also learn exactly which lines of code AI wrote. It's free, open source, and runs locally on your computer.
+**viewtower is an AI-Coding Governance Platform between your coding agent and your machine.** It tracks every action your AI-Coding tools do and stops unsecure ones. You also learn exactly which lines of code AI wrote. It's free, open source, and runs locally on your computer.
 
 - 🛡️ **Stop risky actions instantly.** Every tool call is checked against your rules *before* it runs. `rm -rf`, reading `.env`, force-pushing: denied, with a reason your agent understands.
 - 🔍 **See everything your agent does.** A live dashboard shows each call, grouped by the prompt that started it.
@@ -43,7 +43,7 @@ npx viewtower init --agent codex    # Codex
 That's it. Open the local Development Dashboard with: 
 
 ```bash
-npx viewtower dashbaord
+npx viewtower dashboard
 ```
 
 ## What you get
@@ -75,7 +75,7 @@ This repository is the **viewtower client**. You can use it in two ways:
 | Company-wide mode (enforce/monitor) | –                       | ✅                                                                |
 | Price                          | Free, forever                | Free for up to 3 users, then [see plans](https://viewtower.ai)    |
 
-Both use the same client. If your company invites you, one command connects you:
+Both use the same client. Login with your viewtower.ai user with: 
 
 ```bash
 npx viewtower login
