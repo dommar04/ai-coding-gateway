@@ -28,7 +28,7 @@ Your AI-Coding Agent codes hundreds of lines a day on your machine. Do you know 
 
 **viewtower is an AI-Coding Governance Platform between your coding agent and your machine.** It tracks every action your AI-Coding tools do and stops unsecure ones. You also learn exactly which lines of code AI wrote. It's free, open source, and runs locally on your computer.
 
-- 🛡️ **Stop risky actions instantly.** Every tool call is checked against your rules *before* it runs. `rm -rf`, reading `.env`, force-pushing: denied, with a reason your agent understands.
+- 🛡️ **Stop risky actions instantly.** Every tool call is checked against your rules _before_ it runs. `rm -rf`, reading `.env`, force-pushing: denied, with a reason your agent understands.
 - 🔍 **See everything your agent does.** A live dashboard shows each call, grouped by the prompt that started it.
 - 🧾 **Know which code AI wrote.** Every pull request shows the share of AI code, line by line, and which model wrote it.
 - 💸 **Spend fewer tokens.** Noisy tool output is trimmed before it reaches the model. Your agent won't notice. Your AI bill will.
@@ -40,7 +40,7 @@ npx viewtower init --agent claude   # Claude Code
 npx viewtower init --agent codex    # Codex
 ```
 
-That's it. Open the local Development Dashboard with: 
+That's it. Open the local Development Dashboard with:
 
 ```bash
 npx viewtower dashboard
@@ -66,16 +66,16 @@ The job sets itself up the first time your agent writes code in a project. Trace
 
 This repository is the **viewtower client**. You can use it in two ways:
 
-|                                | **Open source** (this repo)  | **Managed** by [viewtower.ai](https://viewtower.ai)               |
-| ------------------------------ | ---------------------------- | ----------------------------------------------------------------- |
-| Rules, dashboard, CI report    | ✅                           | ✅                                                                |
-| Token savings                  | ✅                           | ✅                                                                |
-| Who sets the rules             | You, on your machine         | Your company, synced to every developer                           |
-| Team-wide audit trail          | –                            | ✅                                                                |
-| Company-wide mode (enforce/monitor) | –                       | ✅                                                                |
-| Price                          | Free, forever                | Free for up to 3 users, then [see plans](https://viewtower.ai)    |
+|                                     | **Open source** (this repo) | **Managed** by [viewtower.ai](https://viewtower.ai)            |
+| ----------------------------------- | --------------------------- | -------------------------------------------------------------- |
+| Rules, dashboard, CI report         | ✅                          | ✅                                                             |
+| Token savings                       | ✅                          | ✅                                                             |
+| Who sets the rules                  | You, on your machine        | Your company, synced to every developer                        |
+| Team-wide audit trail               | –                           | ✅                                                             |
+| Company-wide mode (enforce/monitor) | –                           | ✅                                                             |
+| Price                               | Free, forever               | Free for up to 3 users, then [see plans](https://viewtower.ai) |
 
-Both use the same client. Login with your viewtower.ai user with: 
+Both use the same client. Login with your viewtower.ai user with:
 
 ```bash
 npx viewtower login
@@ -134,10 +134,10 @@ sequenceDiagram
 
 All agents share the same rules, mode, dashboard and history.
 
-| Agent           | Install                                | Hooks are written to                                              | Rules | Traces | Token savings |
-| --------------- | -------------------------------------- | ----------------------------------------------------------------- | :---: | :----: | :-----------: |
-| **Claude Code** | `npx viewtower init --agent claude`    | `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) |  ✅   |   ✅   |      ✅       |
-| **Codex**       | `npx viewtower init --agent codex`     | `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`)               |  ✅   |   ✅   |  coming soon  |
+| Agent           | Install                             | Hooks are written to                                              | Rules | Traces | Token savings |
+| --------------- | ----------------------------------- | ----------------------------------------------------------------- | :---: | :----: | :-----------: |
+| **Claude Code** | `npx viewtower init --agent claude` | `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`) |  ✅   |   ✅   |      ✅       |
+| **Codex**       | `npx viewtower init --agent codex`  | `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`)               |  ✅   |   ✅   |  coming soon  |
 
 Good to know:
 
@@ -180,15 +180,15 @@ Rules decide which tool calls are allowed. They are grouped under plain-language
 
 **Rule examples:**
 
-| Rule                   | Matches                                                  |
-| ---------------------- | -------------------------------------------------------- |
-| `Shell(git *)`         | any Git command, in Bash and PowerShell                  |
-| `Bash(git status)`     | exactly this Bash command                                |
-| `FileRead({cwd}/**)`   | reading and searching anywhere in the current project    |
+| Rule                 | Matches                                               |
+| -------------------- | ----------------------------------------------------- |
+| `Shell(git *)`       | any Git command, in Bash and PowerShell               |
+| `Bash(git status)`   | exactly this Bash command                             |
+| `FileRead({cwd}/**)` | reading and searching anywhere in the current project |
 
 In paths, `*` matches within one folder and `**` matches across folders. `{cwd}`, `{home}` and `{tmp}` stand for the project, home and temp folders.
 
-**A call was blocked and you need it?** Open it on the Activity page and choose **Allow this call…**. viewtower suggests an exact rule and a broader one; pick the narrowest that works. If a *deny* rule blocked it, an allow rule can't override it. Edit or turn off that deny rule instead.
+**A call was blocked and you need it?** Open it on the Activity page and choose **Allow this call…**. viewtower suggests an exact rule and a broader one; pick the narrowest that works. If a _deny_ rule blocked it, an allow rule can't override it. Edit or turn off that deny rule instead.
 
 **Share rules:** use **Export** and **Import…** on the Rules page. Import shows a preview first. **Add** keeps your rules; **Replace** removes them first.
 
@@ -196,15 +196,15 @@ In paths, `*` matches within one folder and `**` matches across folders. `{cwd}`
 
 Pick the mode in the dashboard sidebar or under **Settings**:
 
-| Mode                  | What happens                                                                                          |
-| --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `enforce` (default)   | Blocks denied and unlisted calls. If viewtower itself fails, the call is blocked too (fail closed).   |
-| `monitor`             | Records everything, including calls it *would* block, but lets them all run. Great for a trial run.   |
-| `off`                 | No rule checks. Calls are still recorded.                                                             |
+| Mode                | What happens                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `enforce` (default) | Blocks denied and unlisted calls. If viewtower itself fails, the call is blocked too (fail closed). |
+| `monitor`           | Records everything, including calls it _would_ block, but lets them all run. Great for a trial run. |
+| `off`               | No rule checks. Calls are still recorded.                                                           |
 
 The mode is saved. To override it, for example in a script, set `VIEWTOWER_GATEWAY_MODE=enforce|monitor|off`.
 
-> **Tip:** Not sure yet? Start with `monitor` for a day. Then check the Activity page for what *would* have been blocked.
+> **Tip:** Not sure yet? Start with `monitor` for a day. Then check the Activity page for what _would_ have been blocked.
 
 ### AI change report in CI
 
@@ -222,10 +222,10 @@ The report also lists changes that are **no longer present**: AI code that was l
 
 The first time your agent writes code in a project, viewtower adds the CI job for each CI your repository already uses:
 
-| CI             | Detected by                   | Files added                                                                  |
-| -------------- | ----------------------------- | ---------------------------------------------------------------------------- |
-| GitHub Actions | a `.github/workflows/` folder | `.github/workflows/viewtower-report.yml`                                     |
-| GitLab CI      | a `.gitlab-ci.yml` file       | `.gitlab/viewtower-report.yml`, plus an `include:` line in `.gitlab-ci.yml`  |
+| CI             | Detected by                   | Files added                                                                 |
+| -------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| GitHub Actions | a `.github/workflows/` folder | `.github/workflows/viewtower-report.yml`                                    |
+| GitLab CI      | a `.gitlab-ci.yml` file       | `.gitlab/viewtower-report.yml`, plus an `include:` line in `.gitlab-ci.yml` |
 
 Existing files are never overwritten. Review the new files and commit them.
 
@@ -367,7 +367,7 @@ npx viewtower init --agent claude --login you@company.com   # install and log in
 Once you're logged in:
 
 - **Your company's rules replace your local rules** and stay in sync automatically.
-- **Your company can set the mode** to enforce or monitor. The dashboard then shows *"Set by your company"*. If it doesn't set one, you choose.
+- **Your company can set the mode** to enforce or monitor. The dashboard then shows _"Set by your company"_. If it doesn't set one, you choose.
 - **Activity metadata is shared with your company**, only for the decisions your company opted into: tool name, decision, matching rule, agent, session and time. **The tool's input and result are never sent.** Calls made before you logged in are never sent.
 
 To disconnect:
@@ -393,10 +393,10 @@ viewtower logout                                       # disconnect
 
 Run `viewtower` without a command to see all commands. Rules, mode and token savings are managed in the dashboard.
 
-| Environment variable       | What it does                                         |
-| -------------------------- | ---------------------------------------------------- |
-| `VIEWTOWER_GATEWAY_MODE`   | Overrides the mode: `enforce`, `monitor` or `off`.   |
-| `VIEWTOWER_GATEWAY_DIR`    | Stores all local data in another folder.             |
+| Environment variable     | What it does                                       |
+| ------------------------ | -------------------------------------------------- |
+| `VIEWTOWER_GATEWAY_MODE` | Overrides the mode: `enforce`, `monitor` or `off`. |
+| `VIEWTOWER_GATEWAY_DIR`  | Stores all local data in another folder.           |
 
 ### Data and privacy
 

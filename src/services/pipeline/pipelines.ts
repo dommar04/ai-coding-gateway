@@ -68,10 +68,7 @@ function repoRoot(dir: string): string | null {
 function writeTemplate(template: string, target: string, edit = (text: string) => text): void {
   if (existsSync(target)) return;
   const text = edit(
-    readFileSync(packageFile("pipeline", template), "utf8").replace(
-      "viewtower@latest",
-      `viewtower@${packageVersion()}`
-    )
+    readFileSync(packageFile("pipeline", template), "utf8").replace("viewtower@latest", `viewtower@${packageVersion()}`)
   );
   mkdirSync(dirname(target), { recursive: true });
   // "wx": a parallel hook call may have written it first.

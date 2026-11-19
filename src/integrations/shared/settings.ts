@@ -31,8 +31,7 @@ const PHASES = [
 type Phase = (typeof PHASES)[number]["phase"] | "prompt";
 const ALL_PHASES = [...PHASES, { event: "UserPromptSubmit", phase: "prompt" as const }];
 
-const OUR_COMMAND =
-  /(viewtower(@\S+)?|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
+const OUR_COMMAND = /(viewtower(@\S+)?|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
 
 export function packageVersion(): string {
   try {
