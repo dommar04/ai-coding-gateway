@@ -55,7 +55,7 @@ function logUnlisted(command: string, toolUseId: string): number {
 test("serves the page", async () => {
   const res = await fetch(base + "/");
   assert.equal(res.status, 200);
-  assert.match(await res.text(), /viewtower AI-Coding Governance Platform/);
+  assert.match(await res.text(), /<title>viewtower - /);
 });
 
 test("serves the page's stylesheet and modules with a strict CSP", async () => {
