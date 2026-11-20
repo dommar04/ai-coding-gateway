@@ -1,37 +1,34 @@
 import { fail, parseArgs } from "../helper/args";
-import { DASHBOARD_PORT } from "../../dashboard/autostart";
-import { getSetting } from "../../storage/tables/settings";
+import { DASHBOARD_PORT, openBrowser, stopRunning, waitForPort } from "../../dashboard/autostart";
 
-// dashboard: start the local web dashboard.
+// dashboard: start the local web dashboard (restarts a running one). dashboard --stop: stop the running one.
 
 export async function runDashboard(args: string[]): Promise<void> {
   const { flags } = parseArgs(args);
   const port = typeof flags.port === "string" ? Number(flags.port) : DASHBOARD_PORT;
   if (!Number.isInteger(port) || port < 0 || port > 65535) fail(`Invalid port "${String(flags.port)}".`);
 
-  // Loaded lazily so the hooks never pay for the dashboard code.
-  const { startDashboard, openBrowser } = await import("../../dashboard/server");
-  let dashboard;
-  try {
-    dashboard = await startDashboard({ port });
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "EADDRINUSE") throw err;
-    // Our own dashboard (it accepts the stored token): just open it.
-    const token = getSetting("dashboard:token");
-    const ours =
-      !!token &&
-      (await fetch(`http://127.0.0.1:${port}/api/stats`, {
-        headers: { "X-Gateway-Token": token },
-        signal: AbortSignal.timeout(2000),
-      }).then(
-        (res) => res.ok,
-        () => false
-      ));
-    if (!ours) fail(`Port ${port} is already in use by another program. Free it or use --port.`);
-    console.log(`Dashboard already running at http://127.0.0.1:${port}/`);
-    if (!flags["no-open"]) openBrowser(`http://127.0.0.1:${port}/?token=${token}`);
+  if (flags.stop) {
+    console.log((await stopRunning(port)) ? "Dashboard stopped." : "No dashboard is running.");
     return;
   }
+
+  // Loaded lazily so the hooks never pay for the dashboard code.
+  const { startDashboard } = await import("../../dashboard/server");
+  let dashboard: Awaited<ReturnType<typeof startDashboard>>;
+  const stop = () => dashboard.close().then(() => process.exit(0));
+  let restarted = false;
+  try {
+    dashboard = await startDashboard({ port, onStop: stop });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EADDRINUSE") throw err;
+    // Our own dashboard (only it accepts the stored token): restart it, e.g. to run a new version.
+    if (!(await stopRunning(port))) fail(`Port ${port} is already in use by another program. Free it or use --port.`);
+    await waitForPort(true, port);
+    dashboard = await startDashboard({ port, onStop: stop });
+    restarted = true;
+  }
+  if (restarted) console.log("Restarted the running dashboard.");
   console.log(`Your viewtower.ai Developer Dashboard is running at:
 
   ${dashboard.url}
@@ -39,7 +36,6 @@ export async function runDashboard(args: string[]): Promise<void> {
   console.log("Only reachable from this machine. Press Ctrl+C to stop.");
   if (!flags["no-open"]) openBrowser(dashboard.url);
 
-  const stop = () => dashboard.close().then(() => process.exit(0));
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }

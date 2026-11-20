@@ -3,7 +3,7 @@ import { logError } from "../../helpers/errors";
 import type { Integration } from "..";
 import { readHookInput, reply } from "./hook-io";
 import { recordPrompt } from "../../storage/tables/prompts";
-import { maybeSync } from "../../services/company/sync";
+import { maybeSync, maybeUploadActivity } from "../../services/company/sync";
 import { ensureDashboard } from "../../dashboard/autostart";
 export async function runIntegrationHook(phase: string, integration: Integration): Promise<void> {
   if (phase === "pre") {
@@ -34,7 +34,7 @@ export async function runIntegrationHook(phase: string, integration: Integration
     } catch (err) {
       logError("hook:prompt", err);
     }
-    await maybeSync(integration); // throttled, never throws
+    await maybeUploadActivity(); // activity only (rules sync at session start); throttled, never throws
     reply();
   } else {
     try {

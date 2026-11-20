@@ -31,7 +31,9 @@ const PHASES = [
 type Phase = (typeof PHASES)[number]["phase"] | "prompt";
 const ALL_PHASES = [...PHASES, { event: "UserPromptSubmit", phase: "prompt" as const }];
 
-const OUR_COMMAND = /(viewtower(@\S+)?|[\\/](?:cli|main)\.[jt]s"?)\s+hook\s+(pre|post|session|prompt)\b/;
+// Package/installed commands, or the exact --local shape hookCommand writes (not any cli.js/main.js).
+const OUR_COMMAND =
+  /(?:^|\s)viewtower(?:@\S+)?\s+hook\s+(?:pre|post|session|prompt)\b|^(?:npx tsx|node) "[^"]+\/(?:src\/main\.ts|dist\/main\.js)" hook (?:pre|post|session|prompt) --agent \S+$/;
 
 export function packageVersion(): string {
   try {

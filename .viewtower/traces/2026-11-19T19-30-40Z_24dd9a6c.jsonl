@@ -1,0 +1,5 @@
+{"kind":"session","format":"viewtower-trace","v":1,"tokenizer":1,"session":"24dd9a6c-f3a8-4ac1-b243-022ea21ba83c","agent":"claude","gateway":"1.1.0","started":"2026-11-19T19:30:40.943Z"}
+{"kind":"change","t":"2026-11-19T19:30:40.943Z","model":"claude-opus-5-5","tool":"Edit","path":"src/cli/commands/setup.ts","seg":["ANGcF5qEttqXXpdeWV2yHN24/mmyHHf0u+At5Ydbl16XXoI3uG0vMpwXtDpCka6KDKGahJXL6Xap25XL6XYL25jxbgacF3osmPEvMpqEUhq/jRn/nBcfupjxmPGY8ZwXqKB6LJjxLzKtaK1orWhlOLCOH7qUOJQ4U8eVy3osmPEvMhZIuG0fuhZImoSVy5jxmPGY8ZwXqKB6LJjxPdKtaK1orWhlOLCOH7qUOJQ4PdKVy3osmPE90hZIuG0fuhZImoSVyxZIlctSGgvbuG2ZWEiomoS22psqmPFRUZwXmoS22kio"]}
+{"kind":"change","t":"2026-11-19T19:30:53.884Z","model":"claude-opus-5-5","tool":"Edit","path":"src/cli/commands/setup.ts","seg":["myqY8VFR","myo=","UVE=","fcrZ7dh7","iTNSGrrFSKg=","ttq/jbBR","EeU="]}
+{"kind":"change","t":"2026-11-19T19:31:04.861Z","model":"claude-opus-5-5","tool":"Edit","path":"src/cli/commands/login.ts","seg":["lctSGgvbrWgR5UiorWhSGkio"]}
+{"kind":"change","t":"2026-11-19T19:31:15.713Z","model":"claude-opus-5-5","tool":"Edit","path":"src/cli/commands/login.ts","seg":["bgacFwvbmoQ="]}

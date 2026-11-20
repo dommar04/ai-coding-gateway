@@ -1,6 +1,6 @@
 // Entry point: navigation, sidebar, live stream, startup.
 import { $, $$, api, esc, guard, state, toast, token } from "./core.js";
-import { fmtTok, pct } from "./format.js";
+import { fmtTime, fmtTok, LOCKED_HINT, pct } from "./format.js";
 import { loadActivity, projectLabel, renderCalls, renderProjectOptions, setPrompts, upsertCalls } from "./activity.js";
 import { loadStrategies } from "./savings.js";
 import { loadRules } from "./rules.js";
@@ -56,18 +56,26 @@ function renderStats() {
   });
   // Features: the settings page's switches; token savings off hides its page, menu item and stat card.
   $$("#page-settings [data-feature]").forEach((input) => (input.checked = featureOn(input.dataset.feature)));
+  // Traces and pipelines come from the company when logged in; token savings stay the developer's choice.
+  const traces = $('#page-settings [data-feature="traces"]');
+  traces.disabled = !!s.rulesLocked;
+  traces.closest(".setting").classList.toggle("disabled", traces.disabled);
+  traces.closest(".setting").title = traces.disabled ? LOCKED_HINT : "";
   const pipelines = $('#page-settings [data-feature="pipelines"]');
-  pipelines.disabled = !featureOn("traces");
+  pipelines.disabled = !!s.rulesLocked || !featureOn("traces");
   pipelines.closest(".setting").classList.toggle("disabled", pipelines.disabled);
-  pipelines.closest(".setting").title = pipelines.disabled
-    ? "Needs trace files: the report is set up with a project's first one."
-    : "";
+  pipelines.closest(".setting").title = s.rulesLocked
+    ? LOCKED_HINT
+    : pipelines.disabled
+      ? "Needs trace files: the report is set up with a project's first one."
+      : "";
   const savings = featureOn("tokenSavings");
   $('nav.menu a[data-page="savings"]').hidden = !savings;
   $(".stat-saved").hidden = !savings;
   if (!savings && state.page === "savings") location.hash = "calls";
-  // "Set by your company" lines in the sidebar and on the settings page.
+  // "Set by your company" lines on the settings page. The sidebar mode switch only shows while the developer may choose.
   $$("[data-mode-lock]").forEach((el) => (el.hidden = !s.modeLocked));
+  $("#side-mode").hidden = !!s.modeLocked;
   // Two stat cards, for all projects: "saved 11k of 74k", and denied calls.
   const t = s.tokens || {};
   const share = pct(t.savedTokens, t.resultTokens);
@@ -83,8 +91,9 @@ $$("#modes button, #set-mode button").forEach((b) =>
     guard(async () => {
       if (b.dataset.mode === state.stats?.mode) return;
       if (
-        b.dataset.mode === "enforce" &&
-        !confirm("Switch to Enforce? Denied and unlisted tool calls will be denied in every connected agent session.")
+        b.dataset.mode === "monitor" &&
+        state.stats?.mode === "enforce" &&
+        !confirm("Switch to Monitor? You are disabling rules enforcement: your agent will be allowed to run denied commands.")
       )
         return;
       if (b.dataset.mode === "off" && !confirm("Turn rules enforcement off? Tool calls are no longer checked against the rules."))
@@ -112,6 +121,17 @@ document.addEventListener("keydown", (e) => {
     $("#env").focus();
   }
 });
+/** Signed in: the environment button and menu show the company login instead of "Local environment". Read-only. */
+function renderEnv(c) {
+  if (!c?.managed) return;
+  const synced = c.lastSync ? `synced ${fmtTime(c.lastSync)}` : "not synced yet";
+  $("#env-name").textContent = $("#env-name").title = c.email ?? "Signed in";
+  $("#env-sub").textContent = "Company workspace";
+  $("#env-menu-name").textContent = $("#env-menu-name").title = c.email ?? "Signed in";
+  $("#env-menu-sub").textContent =
+    `Rules and company settings come from your company${c.version !== null ? ` (rules v${c.version}, ${synced})` : ` (${synced})`}.`;
+}
+
 // ---------- settings page ----------
 async function loadStacks() {
   const { stacks } = await api("GET", "/api/stacks");
@@ -196,6 +216,7 @@ if (!token) {
   guard(async () => {
     state.stats = await api("GET", "/api/stats");
     renderStats();
+    renderEnv(await api("GET", "/api/company"));
     showPage(location.hash.slice(1) || "calls");
     state.projects = await api("GET", "/api/projects");
     renderProjectOptions();

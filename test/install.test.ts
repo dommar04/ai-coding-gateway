@@ -1,9 +1,35 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hookCommand, hooksInstalled, installHooks, packageVersion, uninstallHooks } from "../src/integrations/claude/settings";
+import { installRuntime } from "../src/integrations/shared/runtime";
+
+test("installRuntime copies the package to a fixed folder and replaces an older copy", () => {
+  const root = mkdtempSync(join(tmpdir(), "viewtower-runtime-"));
+  const from = join(root, "pkg");
+  const dir = join(root, "runtime");
+  mkdirSync(join(from, "dist"), { recursive: true });
+  writeFileSync(join(from, "dist", "main.js"), "// v1");
+  writeFileSync(join(from, "dist", "old.js"), "");
+  writeFileSync(join(from, "package.json"), "{}");
+  assert.equal(installRuntime(from, dir), join(dir, "dist", "main.js"));
+  assert.equal(readFileSync(join(dir, "dist", "main.js"), "utf8"), "// v1");
+
+  // A new version replaces the whole copy: files it no longer has are gone.
+  rmSync(join(from, "dist", "old.js"));
+  writeFileSync(join(from, "dist", "main.js"), "// v2");
+  installRuntime(from, dir);
+  assert.equal(readFileSync(join(dir, "dist", "main.js"), "utf8"), "// v2");
+  assert.equal(existsSync(join(dir, "dist", "old.js")), false);
+  assert.equal(existsSync(join(dir, "package.json")), true);
+
+  // Run from the copy itself: nothing to copy.
+  assert.equal(installRuntime(dir, dir), join(dir, "dist", "main.js"));
+  // A source checkout without a build is refused.
+  assert.throws(() => installRuntime(join(root, "nobuild"), join(root, "rt2")), /No build found/);
+});
 
 const tempSettings = (content?: unknown) => {
   const path = join(mkdtempSync(join(tmpdir(), "viewtower-install-")), "settings.json");
@@ -57,8 +83,11 @@ test("init keeps other settings and hooks, replaces older gateway hooks, and bac
     permissions: { allow: ["Bash(npm test)"] },
     hooks: {
       PreToolUse: [
-        { matcher: "*", hooks: [{ type: "command", command: "npx tsx C:/dev/tokenreductiongateway/src/cli.ts hook pre" }] },
+        { matcher: "*", hooks: [{ type: "command", command: 'npx tsx "C:/dev/gw/src/main.ts" hook pre --agent claude' }] },
         { matcher: "Bash", hooks: [{ type: "command", command: "my-linter" }] },
+        // Another tool with a cli.js/main.js and a "hook pre" subcommand is not ours.
+        { matcher: "*", hooks: [{ type: "command", command: "node /x/other/dist/cli.js hook pre" }] },
+        { matcher: "*", hooks: [{ type: "command", command: 'node "/x/other/dist/main.js" hook pre' }] },
       ],
       PostToolUse: [{ matcher: "*", hooks: [{ type: "command", command: "viewtower hook post" }] }],
       Stop: [{ hooks: [{ type: "command", command: "notify" }] }],
@@ -74,11 +103,16 @@ test("init keeps other settings and hooks, replaces older gateway hooks, and bac
   assert.deepEqual(s.permissions, { allow: ["Bash(npm test)"] });
   assert.deepEqual(s.hooks.Stop, [{ hooks: [{ type: "command", command: "notify" }] }]);
   const preCommands = s.hooks.PreToolUse.flatMap((e: { hooks: Array<{ command: string }> }) => e.hooks.map((h) => h.command));
-  assert.deepEqual(preCommands, ["my-linter", hookCommand("pre", { integration: "claude" })]);
+  assert.deepEqual(preCommands, [
+    "my-linter",
+    "node /x/other/dist/cli.js hook pre",
+    'node "/x/other/dist/main.js" hook pre',
+    hookCommand("pre", { integration: "claude" }),
+  ]);
 
   // Running init twice does not duplicate the hooks.
   installHooks({ path });
-  assert.equal(read(path).hooks.PreToolUse.length, 2);
+  assert.equal(read(path).hooks.PreToolUse.length, 4);
   assert.equal(read(path).hooks.PostToolUse.length, 1);
 });
 

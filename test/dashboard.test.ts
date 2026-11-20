@@ -626,6 +626,22 @@ test("token is created once and reused", async () => {
   assert.equal(first.token, getSetting("dashboard:token"));
 });
 
+test("POST /api/stop needs the token and calls onStop", async () => {
+  const { startDashboard } = await import("../src/dashboard/server");
+  let stopped = false;
+  const d = await startDashboard({ port: 0, token: "s", pollMs: 1000, onStop: () => (stopped = true) });
+  try {
+    const url = `http://127.0.0.1:${d.port}/api/stop`;
+    assert.equal((await fetch(url, { method: "POST" })).status, 401);
+    assert.equal(stopped, false);
+    assert.equal((await fetch(url, { method: "POST", headers: { "X-Gateway-Token": "s" } })).status, 200);
+    await new Promise((r) => setImmediate(r));
+    assert.equal(stopped, true);
+  } finally {
+    await d.close();
+  }
+});
+
 test("busy port is an error", async () => {
   const { startDashboard } = await import("../src/dashboard/server");
   await assert.rejects(startDashboard({ port: dashboard.port, token: "x" }), { code: "EADDRINUSE" });

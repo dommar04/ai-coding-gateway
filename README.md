@@ -166,7 +166,7 @@ The dashboard runs on your computer at `http://127.0.0.1:4717/`. It has four pag
 
 It keeps running in the background. `init` opens it in your browser and signs it in with an access token; your browser remembers the token after that. To connect another browser, run `npx viewtower dashboard` once.
 
-Options: `--port <number>` to use another port, `--no-open` to skip opening the browser.
+Options: `--port <number>` to use another port, `--no-open` to skip opening the browser, `--stop` to stop the running dashboard.
 
 ### Rules
 
@@ -366,7 +366,7 @@ npx viewtower init --agent claude --login you@company.com   # install and log in
 
 Once you're logged in:
 
-- **Your company's rules replace your local rules** and stay in sync automatically.
+- **Your company's rules replace your local rules** and are updated automatically whenever a new agent session starts.
 - **Your company can set the mode** to enforce or monitor. The dashboard then shows _"Set by your company"_. If it doesn't set one, you choose.
 - **Activity metadata is shared with your company**, only for the decisions your company opted into: tool name, decision, matching rule, agent, session and time. **The tool's input and result are never sent.** Calls made before you logged in are never sent.
 
@@ -386,6 +386,7 @@ Use `npx viewtower`, or `viewtower` if you installed it globally (`npm i -g view
 viewtower init --agent claude|codex [--login [email]]  # install the hooks (and log in)
 viewtower uninstall --agent claude|codex               # remove the hooks
 viewtower dashboard [--port 4717] [--no-open]          # open the dashboard
+viewtower dashboard --stop                             # stop the running dashboard
 viewtower report [--base <ref>] [--head <ref>] [--out <folder>]  # AI change report
 viewtower login [--email you@company.com]              # connect to your company
 viewtower logout                                       # disconnect
@@ -423,10 +424,10 @@ Issues and pull requests are welcome! Found a bug? [Open an issue](../../issues/
 npm install
 npm test
 npm run typecheck
-npx tsx src/main.ts init --agent claude --local   # run the hooks from your checkout
+npx tsx src/main.ts init --agent claude --local   # build and run the hooks from your checkout
 ```
 
-With `--local`, the hooks run your source directly, with no rebuild needed. Run `init --agent claude` again to go back to the published package.
+With `--local`, `init` builds your checkout and the hooks run its build (`dist/main.js`) with node. Later changes need a rebuild (`npm run build`), or keep `npx tsc -p tsconfig.json --watch` running. Run `npx viewtower init --agent claude` to go back to the published package.
 
 ### License
 

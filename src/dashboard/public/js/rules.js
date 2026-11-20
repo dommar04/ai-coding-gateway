@@ -1,6 +1,6 @@
 // Rules page: rule groups (one policy each, with its rules), test box, import/export/defaults.
 import { $, $$, api, esc, guard, state, toast, token } from "./core.js";
-import { fmtTime } from "./format.js";
+import { fmtTime, LOCKED_HINT, lockedAttrs } from "./format.js";
 
 // ---------- loading ----------
 export async function loadRules() {
@@ -108,6 +108,7 @@ function groupHtml(g, allGroups) {
     ...(off ? [`${off} off`] : []),
   ].join(" · ");
   const editing = state.editingGroup === g.id;
+  const lock = lockedAttrs();
   return `<div class="rg rg-${g.kind}${g.open ? " open" : ""}${g.enabled ? "" : " off"}" data-gid="${g.id}">
     <div class="rg-head">
       <button class="rg-main" data-act="expand" aria-expanded="${g.open}">
@@ -116,7 +117,7 @@ function groupHtml(g, allGroups) {
         <span class="rg-text"><span class="rg-title">${esc(g.title)}</span>${g.description ? `<span class="rg-desc">${esc(g.description)}</span>` : ""}</span>
       </button>
       <span class="rg-count">${esc(counts)}${g.enabled ? "" : ' · <span class="pill">switched off</span>'}</span>
-      <label class="switch" title="${g.enabled ? "Switch off every rule in this group" : "Switch this group on"}"><input type="checkbox" data-act="group-toggle" ${g.enabled ? "checked" : ""} aria-label="Group enabled"><span></span></label>
+      <label class="switch" title="${lock ? LOCKED_HINT : g.enabled ? "Switch off every rule in this group" : "Switch this group on"}"><input type="checkbox" data-act="group-toggle" ${g.enabled ? "checked" : ""} aria-label="Group enabled"${lock}><span></span></label>
     </div>
     ${g.open ? groupBody(g, allGroups, editing) : ""}
   </div>`;
@@ -124,6 +125,7 @@ function groupHtml(g, allGroups) {
 
 function groupBody(g, allGroups, editing) {
   const moveTargets = allGroups.filter((x) => x.id !== g.id);
+  const lock = lockedAttrs();
   const rows = g.shown
     .map(
       (r) => `<tr data-id="${r.id}" class="${r.enabled ? "" : "disabled-row"}">
@@ -134,14 +136,14 @@ function groupBody(g, allGroups, editing) {
           .join("")}</td>
         <td class="note-cell">${esc(r.note)}</td>
         <td class="muted">${esc(r.source)}</td>
-        <td><label class="switch"><input type="checkbox" data-act="toggle" ${r.enabled ? "checked" : ""} aria-label="Rule enabled"><span></span></label></td>
+        <td><label class="switch"><input type="checkbox" data-act="toggle" ${r.enabled ? "checked" : ""} aria-label="Rule enabled"${lock}><span></span></label></td>
         <td class="rule-actions">${
           moveTargets.length
-            ? `<select class="sm" data-act="move" aria-label="Move to group"><option value="">Move to…</option>${moveTargets
+            ? `<select class="sm" data-act="move" aria-label="Move to group"${lock}><option value="">Move to…</option>${moveTargets
                 .map((x) => `<option value="${x.id}">${esc(x.title)}</option>`)
                 .join("")}</select>`
             : ""
-        }<button class="btn sm ghost-danger" data-act="delete">Delete</button></td>
+        }<button class="btn sm ghost-danger" data-act="delete"${lock}>Delete</button></td>
       </tr>`
     )
     .join("");
@@ -160,19 +162,19 @@ function groupBody(g, allGroups, editing) {
     ${
       g.shown.length
         ? `<div class="table-wrap"><table class="rg-rules"><thead><tr><th>Effect</th><th>Rule</th><th>Comment</th><th>Source</th><th>Enabled</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        : `<div class="empty compact">${g.rules.length ? "No rules match the filter." : "No rules in this group yet. Add the first one below."}</div>`
+        : `<div class="empty compact">${g.rules.length ? "No rules match the filter." : lock ? "No rules in this group." : "No rules in this group yet. Add the first one below."}</div>`
     }
     ${hidden ? `<div class="rg-hidden muted small">${hidden} more rule${hidden === 1 ? "" : "s"} hidden by the filter.</div>` : ""}
     <form class="rg-add" data-act="add-rule">
-      <select name="effect" aria-label="Effect"><option value="deny" ${defaultEffect === "deny" ? "selected" : ""}>deny</option><option value="allow" ${defaultEffect === "allow" ? "selected" : ""}>allow</option></select>
-      <input type="text" name="rule" class="mono" placeholder="${defaultEffect === "deny" ? "Shell(docker system prune*)" : "Shell(docker compose *)"}" aria-label="Rule" required />
-      <input type="text" name="note" placeholder="Note (optional)" aria-label="Note" />
-      <button class="btn primary" type="submit">Add rule</button>
+      <select name="effect" aria-label="Effect"${lock}><option value="deny" ${defaultEffect === "deny" ? "selected" : ""}>deny</option><option value="allow" ${defaultEffect === "allow" ? "selected" : ""}>allow</option></select>
+      <input type="text" name="rule" class="mono" placeholder="${defaultEffect === "deny" ? "Shell(docker system prune*)" : "Shell(docker compose *)"}" aria-label="Rule" required${lock} />
+      <input type="text" name="note" placeholder="Note (optional)" aria-label="Note"${lock} />
+      <button class="btn primary" type="submit"${lock}>Add rule</button>
     </form>
     <div class="rg-actions">
-      <button class="btn sm" data-act="edit-group">Rename or describe</button>
+      <button class="btn sm" data-act="edit-group"${lock}>Rename or describe</button>
       <span class="grow"></span>
-      <button class="btn sm ghost-danger" data-act="delete-group">Delete group</button>
+      <button class="btn sm ghost-danger" data-act="delete-group"${lock}>Delete group</button>
     </div>
   </div>`;
 }
@@ -522,9 +524,16 @@ export function renderDefaultsBanner() {
   const el = $("#defaults-banner");
   // Company rules replace the defaults, so the managed line takes the banner's place.
   const c = state.company;
+  // Page-level editing buttons; export and the test box stay usable.
+  for (const id of ["#rules-import", "#rules-reset", "#group-new-toggle"]) {
+    $(id).disabled = !!c?.managed;
+    $(id).dataset.title ??= $(id).title;
+    $(id).title = c?.managed ? LOCKED_HINT : $(id).dataset.title;
+  }
+  if (c?.managed) $("#group-new").hidden = true;
   if (c?.managed) {
     const synced = c.lastSync ? `synced ${fmtTime(c.lastSync)}` : "not synced yet";
-    el.innerHTML = `<div class="banner info"><div class="banner-text">Managed by your company${c.version !== null ? ` · rules v${c.version}` : ""} · ${esc(synced)}</div></div>`;
+    el.innerHTML = `<div class="banner info"><div class="banner-text">Managed by your company${c.version !== null ? ` · rules v${c.version}` : ""} · ${esc(synced)}. Rules can only be changed in the portal.</div></div>`;
     return;
   }
   if (!d || d.importedVersion >= d.version) {
