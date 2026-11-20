@@ -1,15 +1,23 @@
 import type { Verdict } from "./matching/engine";
+import { managed } from "../company/session";
 
-// Text returned to the Claude session as permissionDecisionReason when a call is denied.
+// Text returned to the agent session as the deny reason when a call is denied.
 
-const NEXT_STEPS = [
-  "Only the user can allow this, in the gateway dashboard: they open the denied call on the Activity page and add a rule. A Claude Code permission prompt would not help.",
-  "",
-  "Decide how to proceed:",
-  "- If you can still finish the task without this call (a different, allowed approach, or by skipping this optional step), continue and mention the denied call in your final summary.",
-  "- If you cannot continue without it, stop and tell the user that this call is denied by the gateway and can be allowed from its Activity page. Once it is allowed they can ask you to retry.",
-  "- Do not try to achieve the same effect another way (a different command, a script, or another tool). That would bypass the policy.",
-].join("\n");
+function nextSteps(): string {
+  // Logged in: the company sets the rules, so the user can't add one locally.
+  const allow = managed()
+    ? "ask their company to change the rules (they are set centrally)"
+    : "allow it from the Activity page of the viewtower dashboard, then ask you to retry";
+  return [
+    "Only the user can allow this. An agent permission prompt would not help.",
+    "",
+    "Decide how to proceed:",
+    "- If you can still finish the task without this call (a different, allowed approach, or by skipping this optional step), continue and mention the denied call in your final summary.",
+    "- If you really need it, stop and ask the user. Tell them viewtower denied this call and show them the exact command or action. " +
+      `They can run it themselves and share the result with you (in Claude Code by typing \`! <command>\`), or ${allow}.`,
+    "- Do not try to achieve the same effect another way (a different command, a script, or another tool). That would bypass the policy.",
+  ].join("\n");
+}
 
 function describeCall(toolName: string, verdict: Verdict): string {
   return verdict.subject ? `${toolName}: \`${verdict.subject.value}\`` : `the ${toolName} tool`;
@@ -26,7 +34,7 @@ export function denyMessage(toolName: string, verdict: Verdict): string {
       ...(policy ? [policy] : []),
       `It matches deny rule #${verdict.rule.id} \`${verdict.rule.rule}\`${note}.`,
       "",
-      NEXT_STEPS,
+      nextSteps(),
     ].join("\n");
   }
 
@@ -34,7 +42,7 @@ export function denyMessage(toolName: string, verdict: Verdict): string {
     verdict.subject?.kind === "command" && verdict.uncovered.length > 0
       ? `No allow rule covers: ${verdict.uncovered.map((p) => `\`${p}\``).join(", ")}.`
       : "No allow rule covers this tool call.";
-  return [`⛔ Denied by the viewtower: ${describeCall(toolName, verdict)}`, parts, "", NEXT_STEPS].join("\n");
+  return [`⛔ Denied by the viewtower: ${describeCall(toolName, verdict)}`, parts, "", nextSteps()].join("\n");
 }
 
 export function gatewayErrorMessage(): string {

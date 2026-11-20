@@ -13,7 +13,7 @@ import { managed } from "./session";
 // Company rules sync: the server's rule groups replace all local rules. The full replace on every
 // sync also reverts local edits to the SQLite rules.
 
-const INTERVAL_MS = 10_000;
+const INTERVAL_MS = 5 * 60_000;
 
 export interface CompanyConfig {
   sync_approved_activities: boolean;
@@ -81,7 +81,10 @@ export async function syncNow(hooksInstalled: boolean): Promise<{ version: numbe
   });
 }
 
-/** Syncs when logged in and the last attempt is 10+ seconds old. Never throws: a failed sync keeps the last rules. */
+/**
+ * Session start only: uploads pending activity, then pulls the company rules. Runs when logged in and the
+ * last attempt is 5+ minutes old. Never throws: a failed sync keeps the last rules.
+ */
 export async function maybeSync(integration: Pick<Integration, "hooksInstalled">): Promise<void> {
   try {
     if (!managed()) return;
@@ -94,5 +97,21 @@ export async function maybeSync(integration: Pick<Integration, "hooksInstalled">
     await syncNow(integration.hooksInstalled());
   } catch (err) {
     logError("sync", err);
+  }
+}
+
+/**
+ * Prompt hook and dashboard timer: uploads activity only, no rules pull. uploadActivity calls the server
+ * only when there are calls to send, so an idle client makes no requests. At most every 5 minutes. Never throws.
+ */
+export async function maybeUploadActivity(): Promise<void> {
+  try {
+    if (!managed()) return;
+    if (Date.now() - Number(getSetting("company:last_upload") ?? 0) < INTERVAL_MS) return;
+    if (await uploadActivity()) setSetting("company:last_upload", String(Date.now()));
+  } catch (err) {
+    // Throttle failures too, so an unreachable server isn't asked on every prompt.
+    setSetting("company:last_upload", String(Date.now()));
+    logError("activity", err);
   }
 }

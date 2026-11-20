@@ -2,7 +2,6 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
 import {
   countDeniedCalls,
   getCall,
@@ -52,7 +51,7 @@ import {
 import { allowCall, allowOptions, type CallRef } from "../services/tool-security/allow-call";
 import { setUpPipelines } from "../services/pipeline/pipelines";
 import { managed } from "../services/company/session";
-import { maybeSync } from "../services/company/sync";
+import { maybeUploadActivity } from "../services/company/sync";
 import { addSetting, getSetting } from "../storage/tables/settings";
 import {
   addGroup,
@@ -75,6 +74,8 @@ export interface DashboardOptions {
   port: number;
   token?: string;
   pollMs?: number;
+  /** Called by POST /api/stop (`dashboard --stop`); the CLI closes the server and exits. */
+  onStop?: () => void;
 }
 
 export interface Dashboard {
@@ -200,6 +201,8 @@ function stats() {
     deniedCalls: countDeniedCalls(),
     tokens: tokenTotals(),
     modeLocked: companyMode() !== undefined,
+    // Logged in: rules, rule groups and the company features can't be changed here (the API refuses).
+    rulesLocked: managed(),
   };
 }
 
@@ -266,23 +269,6 @@ function staticFile(pathname: string): { type: string; body: Buffer } | null {
   const file = join(PUBLIC_DIR, rel);
   if (!existsSync(file)) return null;
   return { type: CONTENT_TYPES[rel.slice(rel.lastIndexOf("."))], body: readFileSync(file) };
-}
-
-export function openBrowser(url: string): void {
-  try {
-    // Not explorer.exe: it opens the Documents folder instead of the browser for URLs with a query string.
-    const [cmd, args] =
-      process.platform === "win32"
-        ? ["rundll32.exe", ["url.dll,FileProtocolHandler", url]]
-        : process.platform === "darwin"
-          ? ["open", [url]]
-          : ["xdg-open", [url]];
-    const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
-    child.on("error", () => {});
-    child.unref();
-  } catch {
-    // Not fatal: the URL is printed as well.
-  }
 }
 
 export async function startDashboard(options: DashboardOptions): Promise<Dashboard> {
@@ -357,6 +343,12 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
       path !== "/api/rules/test"
     )
       throw new HttpError(403, "Rules are managed by your company.");
+
+    if (method === "POST" && path === "/api/stop") {
+      sendJson(res, 200, { ok: true });
+      setImmediate(() => options.onStop?.());
+      return;
+    }
 
     if (method === "GET" && path === "/api/company") {
       const config = getSetting("company:config");
@@ -633,11 +625,9 @@ export async function startDashboard(options: DashboardOptions): Promise<Dashboa
   const address = server.address();
   if (address && typeof address === "object") port = address.port;
 
-  // Portal changes (mode, rules) also arrive without an agent prompt: once a minute while idle. maybeSync never throws.
-  const sync = () =>
-    void maybeSync({ hooksInstalled: () => ["claude", "codex"].some((id) => integrationFor(id).hooksInstalled()) });
-  sync();
-  const syncTimer = setInterval(sync, 60_000);
+  // Uploads activity left over after the agent stopped. Rules are pulled at session start only.
+  // Every 5 minutes; no request when there is nothing to send. Never throws.
+  const syncTimer = setInterval(() => void maybeUploadActivity(), 5 * 60_000);
 
   return {
     server,

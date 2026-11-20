@@ -24,5 +24,6 @@ export const USAGE = [
   "  viewtower login [--email you@company.com] [--server url]   (log in to your company; rules sync automatically)",
   "  viewtower logout   (end the company login; rules become editable again)",
   "  viewtower dashboard [--port 4717] [--no-open]   (local web dashboard: activity, rules, mode, token savings)",
+  "  viewtower dashboard --stop                       (stop the running dashboard)",
   "  viewtower report [--base <branch|commit>] [--head <commit>] [--out viewtower-report]   (AI change report; in CI the range comes from the merge request or push)",
 ];

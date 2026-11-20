@@ -28,7 +28,11 @@ export const decisionBadge = (d) =>
 
 // ---------- why a call was allowed or blocked ----------
 export const isBlocked = (c) => c.decision === "denied" || c.decision === "would_deny";
-const ALLOW_BUTTON = '<div><button class="btn sm primary" type="button" data-allow>Allow this call…</button></div>';
+/** Disables a control while the company manages the rules, with the reason as its tooltip. */
+export const lockedAttrs = () => (state.stats?.rulesLocked ? ` disabled title="${LOCKED_HINT}"` : "");
+export const LOCKED_HINT = "Managed by your company. Change it in the portal.";
+const allowButton = () =>
+  `<div><button class="btn sm primary" type="button" data-allow${lockedAttrs()}>Allow this call…</button></div>`;
 
 /** Plain-text reason, used as a tooltip. */
 export function reasonTitle(c) {
@@ -66,10 +70,10 @@ export function reasonLong(c) {
   if (r.kind === "rule") {
     return `<div class="reason-box deny"><div><b>${c.decision === "would_deny" ? "Denied" : "Denied"}${r.group ? `: ${esc(r.group)}` : ` by deny rule #${r.ruleId}`}</b></div>
       ${r.deleted ? '<div class="muted">This rule has been deleted since.</div>' : `<div>Deny rule #${r.ruleId} <code>${esc(r.rule)}</code>${r.note ? ` · ${esc(r.note)}` : ""}</div>`}
-      ${ALLOW_BUTTON}</div>`;
+      ${allowButton()}</div>`;
   }
   return `<div class="reason-box unlisted"><div><b>${c.decision === "would_deny" ? "Denied" : "Denied"}: no allow rule covers this call</b></div>
-    ${ALLOW_BUTTON}</div>`;
+    ${allowButton()}</div>`;
 }
 
 /** Result tokens of a call, with the reduction ("12.3k → 4.1k −66%"). */

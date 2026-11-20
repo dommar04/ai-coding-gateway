@@ -97,7 +97,7 @@ test("a group with a blank title still syncs", async () => {
   assert.equal(groups[0].title, "Company rules");
 });
 
-test("maybeSync does nothing within 10 seconds of the last sync", async () => {
+test("maybeSync does nothing within 5 minutes of the last sync", async () => {
   const calls = stubFetch(() => [200, BUNDLE]);
   await m.maybeSync(integration);
   assert.equal(calls.length, 0);
@@ -192,26 +192,36 @@ test("company enforcement mode: enforce/monitor override the local mode, develop
   }
 });
 
-test("dashboard syncs on start, so a company mode arrives without an agent prompt", async () => {
+test("dashboard start makes no server request: rules are pulled at session start only", async () => {
   m.storeTokens({ access_token: "tok-1", refresh_token: "ref-1", expires_in: 3600 }, "dev@company.test");
   m.setSetting("company:last_sync", "0");
   m.setSetting("company:last_attempt", "0");
-  const calls = stubFetch(() => [200, { ...BUNDLE, config: { ...BUNDLE.config, enforcement_mode: "monitor" } }]);
+  const calls = stubFetch(() => [200, BUNDLE]);
   const { startDashboard } = await import("../src/dashboard/server");
   const dashboard = await startDashboard({ port: 0, token: "t", pollMs: 1000 });
   try {
-    for (let i = 0; i < 200 && m.getSetting("company:mode") !== "monitor"; i++) await new Promise((r) => setTimeout(r, 10));
-    assert.equal(calls.filter((c) => c.path === "/client/sync").length, 1);
-    globalThis.fetch = realFetch;
-    const stats = await (
-      await fetch(`http://127.0.0.1:${dashboard.port}/api/stats`, { headers: { "X-Gateway-Token": "t" } })
-    ).json();
-    assert.equal(stats.mode, "monitor");
-    assert.equal(stats.modeLocked, true);
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(calls.length, 0);
   } finally {
     globalThis.fetch = realFetch;
     await dashboard.close();
-    m.setSetting("company:mode", "developers_choice");
+  }
+});
+
+test("maybeUploadActivity makes no request when there is nothing to send", async () => {
+  const { resetActivityCursor } = await import("../src/services/company/activity");
+  m.storeTokens({ access_token: "tok-1", refresh_token: "ref-1", expires_in: 3600 }, "dev@company.test");
+  m.setSetting("company:config", JSON.stringify({ ...BUNDLE.config, sync_approved_activities: true }));
+  resetActivityCursor();
+  m.setSetting("company:last_upload", "0");
+  const calls = stubFetch(() => [200, {}]);
+  try {
+    await m.maybeUploadActivity();
+    assert.equal(calls.length, 0);
+    // Nothing sent: the throttle stays open for the next call.
+    assert.equal(m.getSetting("company:last_upload"), "0");
+  } finally {
+    globalThis.fetch = realFetch;
   }
 });
 

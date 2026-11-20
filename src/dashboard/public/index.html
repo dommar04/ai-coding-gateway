@@ -102,7 +102,7 @@
               <div class="sub">tool calls</div>
             </div>
           </div>
-          <div class="side-mode">
+          <div class="side-mode" id="side-mode">
             <div class="label">Mode</div>
             <div class="modes" id="modes" role="group" aria-label="Enforcement mode">
               <button data-mode="enforce" title="Block denied and unlisted calls" data-hint="Denied Calls are Blocked.">
@@ -123,8 +123,8 @@
           <div class="env-wrap">
             <div class="env-menu" id="env-menu" hidden>
               <div class="env-menu-head">
-                <strong>Local environment</strong>
-                <span>Rules, activity and settings stay on this machine.</span>
+                <strong id="env-menu-name">Local environment</strong>
+                <span id="env-menu-sub">Rules, activity and settings stay on this machine.</span>
               </div>
               <a class="env-item" href="#settings"
                 ><svg class="icon"><use href="#i-settings" /></svg>Settings</a
@@ -135,7 +135,8 @@
                 ><svg class="icon"><use href="#i-laptop" /></svg
               ></span>
               <span class="env-text"
-                ><span class="env-name">Local environment</span><span class="env-sub">Not signed in</span></span
+                ><span class="env-name" id="env-name">Local environment</span
+                ><span class="env-sub" id="env-sub">Not signed in</span></span
               >
               <svg class="icon env-chev"><use href="#i-chevron" /></svg>
             </button>
