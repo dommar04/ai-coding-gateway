@@ -313,7 +313,8 @@ test("deny message tells the agent the user can allow the call from the dashboar
   const msg = denyMessage("Bash", v);
   assert.match(msg, /No allow rule covers: `docker compose up`/);
   assert.match(msg, /Activity page/);
-  assert.match(msg, /cannot continue without it/);
+  assert.match(msg, /If you really need it, stop and ask the user/);
+  assert.match(msg, /run it themselves/);
   assert.doesNotMatch(msg, /approval request|admin/);
 
   // A deny rule's message names the policy it belongs to.
